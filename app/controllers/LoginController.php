@@ -10,10 +10,10 @@ class LoginController extends Controller
     {
         $request = $this->request;
 
-        // Assuming the request body is JSON
+       
         $jsonData = $request->getRawBody();
 
-        // Decode the JSON data
+    
         $data = json_decode($jsonData, true);
 
         if (!$data) {
@@ -31,7 +31,7 @@ class LoginController extends Controller
                                   ->setJsonContent(['error' => 'Username and password are required']);
         }
 
-        // Validate username and password (implement your validation logic)
+       
         $user = Users::findFirstByUsername($username);
 
         if (!$user || !password_verify($password, $user->password)) {
@@ -41,7 +41,7 @@ class LoginController extends Controller
         }
 
         $issuedAt = time();
-        $expire = $issuedAt + 3600; // One hour expiration
+        $expire = $issuedAt + 3600; 
 
         $payload = [
             'iss' => 'YOUR_APP_URL',
@@ -50,14 +50,14 @@ class LoginController extends Controller
             'exp' => $expire,
             'data' => [
                 'userId' => $user->id,
-                'role' => $user->getRoleName(), // Retrieve the role name
+                'role' => $user->getRoleName(), 
             ],
         ];
 
-        // Load the configuration
+    
         $config = $this->di->getConfig();
 
-        // Retrieve the secret key
+      
         $secretKey = $config->jwt->secret_key;
 
         $jwt = JWT::encode($payload, $secretKey, 'HS256');

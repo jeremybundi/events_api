@@ -18,4 +18,14 @@ $router->addPost('/event/add', [
     'controller' => 'event',
     'action' => 'add'
 ]);
+//edit event
+$router->addPut('/event/edit/{id}', [
+    'controller' => 'event',
+    'action' => 'edit'
+]);
+//book
+$router->addPost('/booking/create', [
+    'controller' => 'booking',
+    'action' => 'create'
+]);
 $router->handle($_SERVER['REQUEST_URI']);
