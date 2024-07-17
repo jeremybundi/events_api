@@ -1,0 +1,11 @@
+{
+    "name": "jeremy/events",
+    "autoload": {
+        "psr-4": {
+            "Jeremy\\Events\\": "src/"
+        }
+    },
+    "require": {
+        "firebase/php-jwt": "^6.10"
+    }
+}
