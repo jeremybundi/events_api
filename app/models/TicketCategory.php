@@ -9,11 +9,19 @@ class TicketCategory extends Model
     public $category_name;
     public $price;
     public $quantity_available;
+    public $created_at;
+    public $updated_at;
 
     public function initialize()
     {
-        $this->belongsTo('event_id', Event::class, 'id', [
-            'alias' => 'Event'
+        $this->setSource('ticket_category');
+
+        $this->belongsTo('event_id', 'Event', 'id', [
+            'alias' => 'event'
+        ]);
+
+        $this->hasMany('id', 'Booking', 'ticket_category_id', [
+            'alias' => 'booking'
         ]);
     }
 }

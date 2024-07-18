@@ -30,6 +30,13 @@ class Users extends Model
                 'alias' => 'role',
             ]
         );
+        $this->hasMany('id', 'TicketProfile', 'user_id', [
+            'alias' => 'ticketProfiles'
+        ]);
+
+        $this->hasMany('id', 'Booking', 'user_id', [
+            'alias' => 'booking'
+        ]);
     }
 
     public function getRoleName()

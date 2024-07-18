@@ -1,13 +1,13 @@
 <?php
-
 use Phalcon\Mvc\Controller;
 use Phalcon\Http\Response;
+use Phalcon\Validation;
+use Phalcon\Validation\Validator\PresenceOf;
 
 class BookingController extends Controller
 {
     public function initialize()
     {
-     
         $this->view->disable();
     }
 
@@ -15,21 +15,74 @@ class BookingController extends Controller
     {
         $response = new Response();
 
-        // Assuming you receive JSON input
         $data = $this->request->getJsonRawBody(true);
 
-        if (!isset($data['booking']) || !is_array($data['booking'])) {
+        // Input validation
+        $validation = new Validation();
+        $validation->add(
+            'user_id',
+            new PresenceOf([
+                'message' => 'The user_id field is required',
+            ])
+        );
+        $validation->add(
+            'booking',
+            new PresenceOf([
+                'message' => 'The booking field is required',
+            ])
+        );
+        $validation->add(
+            'payment_method',
+            new PresenceOf([
+                'message' => 'The payment_method field is required',
+            ])
+        );
+        $validation->add(
+            'amount',
+            new PresenceOf([
+                'message' => 'The amount field is required',
+            ])
+        );
+
+        $messages = $validation->validate($data);
+        if (count($messages)) {
+            $errors = [];
+            foreach ($messages as $message) {
+                $errors[] = $message->getMessage();
+            }
+
             return $response->setJsonContent([
                 'status' => 'error',
-                'message' => 'Invalid input data'
+                'message' => implode(', ', $errors),
+            ]);
+        }
+
+        if (!is_array($data['booking']) || empty($data['booking'])) {
+            return $response->setJsonContent([
+                'status' => 'error',
+                'message' => 'Invalid input data',
+            ]);
+        }
+
+        $userId = $data['user_id'];
+
+        // Check if the user exists
+        $user = Users::findFirst($userId);
+        if (!$user) {
+            return $response->setJsonContent([
+                'status' => 'error',
+                'message' => 'User not found for user ID: ' . $userId,
             ]);
         }
 
         $this->db->begin();
 
+        $totalAmount = 0;
+        $bookingDetails = [];
+
         try {
             foreach ($data['booking'] as $bookingData) {
-                if (!isset($bookingData['user_id'], $bookingData['event_id'], $bookingData['ticket_category_id'], $bookingData['quantity'])) {
+                if (!isset($bookingData['event_id'], $bookingData['ticket_category_id'], $bookingData['quantity'])) {
                     throw new \Exception('Invalid booking data');
                 }
 
@@ -55,9 +108,13 @@ class BookingController extends Controller
                     throw new \Exception('Not enough total tickets available for event ID: ' . $bookingData['event_id']);
                 }
 
+                // Calculate the subtotal for this ticket category
+                $subtotal = $ticketCategory->price * $bookingData['quantity'];
+                $totalAmount += $subtotal;
+
                 // Create a new Booking
                 $booking = new Booking();
-                $booking->user_id = $bookingData['user_id'];
+                $booking->user_id = $userId;
                 $booking->event_id = $bookingData['event_id'];
                 $booking->ticket_category_id = $bookingData['ticket_category_id'];
                 $booking->quantity = $bookingData['quantity'];
@@ -80,13 +137,49 @@ class BookingController extends Controller
                 if (!$event->save()) {
                     throw new \Exception('Failed to update event ID: ' . $bookingData['event_id']);
                 }
+
+                $bookingDetails[] = [
+                    'event_id' => $bookingData['event_id'],
+                    'ticket_category_id' => $bookingData['ticket_category_id'],
+                    'quantity' => $bookingData['quantity'],
+                    'price' => $ticketCategory->price,
+                    'subtotal' => $subtotal,
+                    'booking_id' => $booking->id,
+                ];
+
+                // Process Payment for each booking
+                $paymentController = new PaymentController();
+                $paymentResult = $paymentController->processPayment(
+                    $userId,
+                    $booking->id,
+                    $data['amount'],
+                    $data['payment_method'],
+                    $data['mpesa_reference'] ?? null
+                );
+
+                if ($paymentResult['status'] !== 'success') {
+                    throw new \Exception($paymentResult['message']);
+                }
+
+                // Add to ticket_profiles table
+                $ticketProfile = new TicketProfile();
+                $ticketProfile->user_id = $userId;
+                $ticketProfile->booking_id = $booking->id;
+                $ticketProfile->created_at = date('Y-m-d H:i:s');
+                $ticketProfile->updated_at = date('Y-m-d H:i:s');
+
+                if (!$ticketProfile->save()) {
+                    throw new \Exception('Failed to save ticket profile');
+                }
             }
 
             $this->db->commit();
 
             return $response->setJsonContent([
                 'status' => 'success',
-                'message' => 'Bookings created successfully'
+                'message' => 'Bookings and payment processed successfully',
+                'booking_details' => $bookingDetails,
+                'total_amount' => $totalAmount,
             ]);
 
         } catch (\Exception $e) {
@@ -94,7 +187,7 @@ class BookingController extends Controller
 
             return $response->setJsonContent([
                 'status' => 'error',
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ]);
         }
     }

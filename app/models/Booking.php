@@ -16,14 +16,19 @@ class Booking extends Model
 
     public function initialize()
     {
-        $this->belongsTo('user_id', User::class, 'id', [
-            'alias' => 'User'
+        $this->setSource('booking');
+
+        $this->belongsTo('user_id', 'Users', 'id', [
+            'alias' => 'users'
         ]);
-        $this->belongsTo('event_id', Event::class, 'id', [
-            'alias' => 'Event'
+
+        $this->belongsTo('event_id', 'Event', 'id', [
+            'alias' => 'event'
         ]);
-        $this->belongsTo('ticket_category_id', TicketCategory::class, 'id', [
-            'alias' => 'TicketCategory'
+
+        $this->belongsTo('ticket_category_id', 'TicketCategory', 'id', [
+            'alias' => 'ticketCategory'
         ]);
+
     }
 }

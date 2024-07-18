@@ -28,4 +28,10 @@ $router->addPost('/booking/create', [
     'controller' => 'booking',
     'action' => 'create'
 ]);
+//get tickets
+
+$router->addGet('/get/tickets/{userId}', [
+    'controller' => 'ticketprofile',
+    'action' => 'getTickets'
+]);
 $router->handle($_SERVER['REQUEST_URI']);

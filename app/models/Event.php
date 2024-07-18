@@ -12,11 +12,19 @@ class Event extends Model
     public $venue;
     public $description;
     public $total_tickets;
+    public $created_at;
+    public $updated_at;
 
     public function initialize()
     {
-        $this->hasMany('id', TicketCategory::class, 'event_id', [
-            'alias' => 'TicketCategories'
+        $this->setSource('event');
+        
+        $this->hasMany('id', 'Booking', 'event_id', [
+            'alias' => 'booking'
+        ]);
+
+        $this->hasMany('id', 'TicketCategory', 'event_id', [
+            'alias' => 'ticketCategory'
         ]);
     }
 }
