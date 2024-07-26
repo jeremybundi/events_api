@@ -39,7 +39,11 @@ $router->addGet('/get/tickets/{userId}', [
     'controller' => 'ticketprofile',
     'action' => 'getTickets'
 ]);
-
+// get paid tickets
+$router->addGet('/tickets/paid/{userId}', [
+    'controller' => 'TicketProfile',
+    'action' => 'getPaidTickets'
+]);
 //pay
 $router->add(
     '/transaction/pay/{id}',
@@ -48,13 +52,6 @@ $router->add(
         'action'     => 'pay',
     ]
 );
-
-//card pay
-
-$router->addGet('/card/payment/{paymentId}', [
-    'controller' => 'payment',
-    'action' => 'initiateCardPayment'
-]);
 //callback
 
 $router->addGet('/card/payment/{paymentId}', [

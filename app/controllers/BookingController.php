@@ -56,24 +56,20 @@ class BookingController extends Controller
                     throw new \Exception('Invalid booking data');
                 }
 
-                // Find the ticket category
                 $ticketCategory = TicketCategory::findFirst($bookingData['ticket_category_id']);
                 if (!$ticketCategory) {
                     throw new \Exception('Ticket category not found');
                 }
 
-                // Check if there are enough tickets available
                 if ($ticketCategory->quantity_available < $bookingData['quantity']) {
                     throw new \Exception('Not enough tickets available for ticket category ID: ' . $bookingData['ticket_category_id']);
                 }
 
-                // Find the event
                 $event = Event::findFirst($bookingData['event_id']);
                 if (!$event) {
                     throw new \Exception('Event not found for event ID: ' . $bookingData['event_id']);
                 }
 
-                // Check if the total tickets are sufficient
                 if ($event->total_tickets < $bookingData['quantity']) {
                     throw new \Exception('Not enough total tickets available for event ID: ' . $bookingData['event_id']);
                 }
@@ -132,7 +128,7 @@ class BookingController extends Controller
 
             // Create payment record
             $paymentController = new PaymentController();
-            $paymentResult = $paymentController->processPayment($userId, $totalAmount, $data['payment_method']);
+            $paymentResult = $paymentController->processPayment($userId, $totalAmount, $data['payment_method'], $booking->id);
 
             if ($paymentResult['status'] !== 'success') {
                 throw new \Exception($paymentResult['message']);

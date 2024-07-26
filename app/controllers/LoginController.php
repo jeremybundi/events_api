@@ -102,7 +102,7 @@ class LoginController extends Controller
             error_log("OTP email sent to {$recipientEmail}");
             return true;
         } catch (Exception $e) {
-            // Log the error, perhaps notify the admin
+            
             error_log("Mailer Error: {$mail->ErrorInfo}");
             return false;
         }
@@ -139,7 +139,7 @@ class LoginController extends Controller
 
         // Generate JWT token
         $issuedAt = time();
-        $expire = $issuedAt + 3600; // 1 hour expiration
+        $expire = $issuedAt + 3600; 
         $payload = [
             'iss' => 'YOUR_APP_URL',
             'aud' => 'YOUR_APP_URL',

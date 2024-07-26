@@ -18,7 +18,6 @@ class TransactionController extends Controller
 
     public function payAction($id)
     {
-        // Retrieve payment details from the database
         $payment = Payment::findFirstById($id);
 
         if (!$payment) {
@@ -35,7 +34,7 @@ class TransactionController extends Controller
             return $this->sendErrorResponse('Total amount not found or is null');
         }
 
-        // Retrieve phone number from the request body
+        
         $data = $this->request->getJsonRawBody();
         $phoneNumber = isset($data->phoneNumber) ? $data->phoneNumber : null;
 
@@ -79,14 +78,13 @@ class TransactionController extends Controller
             return $this->sendErrorResponse('Invalid amount or user ID');
         }
 
-        // Implement card payment processing logic here
+      
        
         return $this->sendSuccessResponse('Card payment processed', $amount, $userId, $paymentMethod);
     }
 
     private function initiateMpesaStkPush($amount, $phoneNumber, $callbackUrl, $paymentId)
     {
-        // Generate the access token
         $accessToken = $this->generateMpesaAccessToken(self::MPESA_CONSUMER_KEY, self::MPESA_CONSUMER_SECRET);
 
         // STK push request payload
@@ -112,7 +110,6 @@ class TransactionController extends Controller
             'Content-Type: application/json'
         ];
 
-        // Send the STK push request
         $curl = curl_init();
         curl_setopt($curl, CURLOPT_URL, self::MPESA_STK_PUSH_URL);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);

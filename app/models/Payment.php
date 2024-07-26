@@ -11,6 +11,7 @@ class Payment extends Model
     public $payment_status_id;
     public $created_at;
     public $updated_at;
+    public $booking_id;
 
     public function initialize()
     {

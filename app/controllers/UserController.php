@@ -40,7 +40,7 @@ class UserController extends Controller
         $user->email = $email;
 
     
-        $user->password = password_hash($password, PASSWORD_BCRYPT);  // Use BCRYPT
+        $user->password = password_hash($password, PASSWORD_BCRYPT); 
 
         $user->phone = $phone;
 
