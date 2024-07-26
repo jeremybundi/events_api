@@ -19,6 +19,7 @@ class Users extends Model
     public $role_id; 
     public $otp;
     public $otp_expires_at;
+    public $is_verified;
 
     public function initialize()
     {

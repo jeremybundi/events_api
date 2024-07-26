@@ -159,6 +159,7 @@ class LoginController extends Controller
                               ->setContentType('application/json', 'UTF-8')
                               ->setJsonContent([
                                   'token' => $jwt,
+                                  
                                   'role' => $user->getRoleName(),
                               ]);
     }

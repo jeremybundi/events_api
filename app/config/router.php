@@ -2,18 +2,33 @@
 
 $router = $di->getRouter();
 
-// Define your routes here
 //register user
 $router->addPost('/user/create', [
     'controller' => 'user',
     'action' => 'create',
 ]);
+//verify user with otp during signin
+$router->addPost('/user/verify/otp', [
+    'controller' => 'user',
+    'action' => 'verifyotp',
+]);
+//send otp to reset password
+$router->addPost('/forgot/password/otp', [
+    'controller' => 'forgotpassword',
+    'action' => 'sendotp',
+]);
+//verify otp and reset password
+$router->addPost('/reset/password', [
+    'controller' => 'forgotpassword',
+    'action' => 'verifyOtpAndResetPassword',
+]);
+
 //login
-$router->addPost('/user/login', [
+$router->addPost('/login', [
     'controller' => 'login',
     'action' => 'login',
 ]);
- //verify with otp
+ //login with otp 
  $router->addPost('/verify/otp', [
     'controller' => 'login',
     'action' => 'verifyOtp',

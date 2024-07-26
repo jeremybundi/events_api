@@ -1,4 +1,6 @@
 <?php
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 use Phalcon\Mvc\Controller;
 use Phalcon\Http\Response;
 use Phalcon\Validation;
@@ -15,11 +17,32 @@ class BookingController extends Controller
     {
         $response = new Response();
 
+        // Extract token from the headers
+        $authHeader = $this->request->getHeader('Authorization');
+        if (!$authHeader || !preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
+            return $response->setStatusCode(401, 'Unauthorized')
+                            ->setJsonContent(['status' => 'error', 'message' => 'Token not provided or invalid']);
+        }
+
+        $token = $matches[1];
+
+        try {
+            // Decode the token
+            $config = $this->di->getConfig();
+            $secretKey = $config->jwt->secret_key;
+            $decoded = JWT::decode($token, new Key($secretKey, 'HS256'));
+        } catch (\Exception $e) {
+            return $response->setStatusCode(401, 'Unauthorized')
+                            ->setJsonContent(['status' => 'error', 'message' => 'Invalid token']);
+        }
+
+        // Extract user_id from token
+        $userId = $decoded->data->userId;
+
         $data = $this->request->getJsonRawBody(true);
 
         // Input validation
         $validation = new Validation();
-        $validation->add('user_id', new PresenceOf(['message' => 'The user_id field is required']));
         $validation->add('booking', new PresenceOf(['message' => 'The booking field is required']));
         $validation->add('payment_method', new PresenceOf(['message' => 'The payment_method field is required']));
 
@@ -36,8 +59,6 @@ class BookingController extends Controller
         if (!is_array($data['booking']) || empty($data['booking'])) {
             return $response->setJsonContent(['status' => 'error', 'message' => 'Invalid input data']);
         }
-
-        $userId = $data['user_id'];
 
         // Check if the user exists
         $user = Users::findFirst($userId);
