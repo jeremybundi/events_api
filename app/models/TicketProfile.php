@@ -9,6 +9,7 @@ class TicketProfile extends Model
     public $booking_id;
     public $created_at;
     public $updated_at;
+    public $payment_status;
 
     public function initialize()
     {

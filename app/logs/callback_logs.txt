@@ -1,0 +1,612 @@
+Array
+(
+    [Body] => Array
+        (
+            [stkCallback] => Array
+                (
+                    [ResultCode] => 0
+                    [ResultDesc] => The service request is processed successfully.
+                    [CallbackMetadata] => Array
+                        (
+                            [Item] => Array
+                                (
+                                    [0] => Array
+                                        (
+                                            [Name] => MpesaReceiptNumber
+                                            [Value] => ABC123DEF456
+                                        )
+
+                                    [1] => Array
+                                        (
+                                            [Name] => AccountReference
+                                            [Value] => 123456
+                                        )
+
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+Payment ID: 123456, Receipt Number: ABC123DEF456
+Array
+(
+    [Body] => Array
+        (
+            [stkCallback] => Array
+                (
+                    [ResultCode] => 0
+                    [ResultDesc] => The service request is processed successfully.
+                    [CallbackMetadata] => Array
+                        (
+                            [Item] => Array
+                                (
+                                    [0] => Array
+                                        (
+                                            [Name] => MpesaReceiptNumber
+                                            [Value] => SGNOKGIP4C
+                                        )
+
+                                    [1] => Array
+                                        (
+                                            [Name] => AccountReference
+                                            [Value] => 7
+                                        )
+
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+Payment ID: 7, Receipt Number: SGNOKGIP4C
+Array
+(
+    [Body] => Array
+        (
+            [stkCallback] => Array
+                (
+                    [ResultCode] => 0
+                    [ResultDesc] => The service request is processed successfully.
+                    [CallbackMetadata] => Array
+                        (
+                            [Item] => Array
+                                (
+                                    [0] => Array
+                                        (
+                                            [Name] => MpesaReceiptNumber
+                                            [Value] => SGNOKGIP4C
+                                        )
+
+                                    [1] => Array
+                                        (
+                                            [Name] => AccountReference
+                                            [Value] => 11
+                                        )
+
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+Payment ID: 11, Receipt Number: SGNOKGIP4C
+Array
+(
+    [Body] => Array
+        (
+            [stkCallback] => Array
+                (
+                    [ResultCode] => 0
+                    [ResultDesc] => The service request is processed successfully.
+                    [CallbackMetadata] => Array
+                        (
+                            [Item] => Array
+                                (
+                                    [0] => Array
+                                        (
+                                            [Name] => MpesaReceiptNumber
+                                            [Value] => SGNOKGIP4C
+                                        )
+
+                                    [1] => Array
+                                        (
+                                            [Name] => AccountReference
+                                            [Value] => 9
+                                        )
+
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+Payment ID: 9, Receipt Number: SGNOKGIP4C
+Array
+(
+    [Body] => Array
+        (
+            [stkCallback] => Array
+                (
+                    [ResultCode] => 0
+                    [ResultDesc] => The service request is processed successfully.
+                    [CallbackMetadata] => Array
+                        (
+                            [Item] => Array
+                                (
+                                    [0] => Array
+                                        (
+                                            [Name] => MpesaReceiptNumber
+                                            [Value] => SGNOKGIP4C
+                                        )
+
+                                    [1] => Array
+                                        (
+                                            [Name] => AccountReference
+                                            [Value] => 12
+                                        )
+
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+Payment ID: 12, Receipt Number: SGNOKGIP4C
+Array
+(
+    [Body] => Array
+        (
+            [stkCallback] => Array
+                (
+                    [ResultCode] => 0
+                    [ResultDesc] => The service request is processed successfully.
+                    [CallbackMetadata] => Array
+                        (
+                            [Item] => Array
+                                (
+                                    [0] => Array
+                                        (
+                                            [Name] => MpesaReceiptNumber
+                                            [Value] => SGNOKGIP4C
+                                        )
+
+                                    [1] => Array
+                                        (
+                                            [Name] => AccountReference
+                                            [Value] => 7
+                                        )
+
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+Payment ID: 7, Receipt Number: SGNOKGIP4C
+Array
+(
+    [Body] => Array
+        (
+            [stkCallback] => Array
+                (
+                    [ResultCode] => 0
+                    [ResultDesc] => The service request is processed successfully.
+                    [CallbackMetadata] => Array
+                        (
+                            [Item] => Array
+                                (
+                                    [0] => Array
+                                        (
+                                            [Name] => MpesaReceiptNumber
+                                            [Value] => SGN4KKLYZY
+                                        )
+
+                                    [1] => Array
+                                        (
+                                            [Name] => AccountReference
+                                            [Value] => 9
+                                        )
+
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+Payment ID: 9, Receipt Number: SGN4KKLYZY
+Array
+(
+    [Body] => Array
+        (
+            [stkCallback] => Array
+                (
+                    [ResultCode] => 0
+                    [ResultDesc] => The service request is processed successfully.
+                    [CallbackMetadata] => Array
+                        (
+                            [Item] => Array
+                                (
+                                    [0] => Array
+                                        (
+                                            [Name] => MpesaReceiptNumber
+                                            [Value] => SGN4KKLYZY
+                                        )
+
+                                    [1] => Array
+                                        (
+                                            [Name] => AccountReference
+                                            [Value] => 9
+                                        )
+
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+Payment ID: 9, Receipt Number: SGN4KKLYZY
+Array
+(
+    [Body] => Array
+        (
+            [stkCallback] => Array
+                (
+                    [ResultCode] => 0
+                    [ResultDesc] => The service request is processed successfully.
+                    [CallbackMetadata] => Array
+                        (
+                            [Item] => Array
+                                (
+                                    [0] => Array
+                                        (
+                                            [Name] => MpesaReceiptNumber
+                                            [Value] => SGNKKLYZY
+                                        )
+
+                                    [1] => Array
+                                        (
+                                            [Name] => AccountReference
+                                            [Value] => 9
+                                        )
+
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+Payment ID: 9, Receipt Number: SGNKKLYZY
+Array
+(
+    [Body] => Array
+        (
+            [stkCallback] => Array
+                (
+                    [ResultCode] => 0
+                    [ResultDesc] => The service request is processed successfully.
+                    [CallbackMetadata] => Array
+                        (
+                            [Item] => Array
+                                (
+                                    [0] => Array
+                                        (
+                                            [Name] => MpesaReceiptNumber
+                                            [Value] => SGNKKLYZY
+                                        )
+
+                                    [1] => Array
+                                        (
+                                            [Name] => AccountReference
+                                            [Value] => 9
+                                        )
+
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+Payment ID: 9, Receipt Number: SGNKKLYZY
+Array
+(
+    [Body] => Array
+        (
+            [stkCallback] => Array
+                (
+                    [ResultCode] => 0
+                    [ResultDesc] => The service request is processed successfully.
+                    [CallbackMetadata] => Array
+                        (
+                            [Item] => Array
+                                (
+                                    [0] => Array
+                                        (
+                                            [Name] => MpesaReceiptNumber
+                                            [Value] => SGNKKLYZY
+                                        )
+
+                                    [1] => Array
+                                        (
+                                            [Name] => AccountReference
+                                            [Value] => 9
+                                        )
+
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+Payment ID: 9, Receipt Number: SGNKKLYZY
+Array
+(
+    [Body] => Array
+        (
+            [stkCallback] => Array
+                (
+                    [ResultCode] => 0
+                    [ResultDesc] => The service request is processed successfully.
+                    [CallbackMetadata] => Array
+                        (
+                            [Item] => Array
+                                (
+                                    [0] => Array
+                                        (
+                                            [Name] => MpesaReceiptNumber
+                                            [Value] => SGNKKLYZY
+                                        )
+
+                                    [1] => Array
+                                        (
+                                            [Name] => AccountReference
+                                            [Value] => 9
+                                        )
+
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+Payment ID: 9, Receipt Number: SGNKKLYZY
+Array
+(
+    [Body] => Array
+        (
+            [stkCallback] => Array
+                (
+                    [ResultCode] => 0
+                    [ResultDesc] => The service request is processed successfully.
+                    [CallbackMetadata] => Array
+                        (
+                            [Item] => Array
+                                (
+                                    [0] => Array
+                                        (
+                                            [Name] => MpesaReceiptNumber
+                                            [Value] => SGNKKLYZY
+                                        )
+
+                                    [1] => Array
+                                        (
+                                            [Name] => AccountReference
+                                            [Value] => 
+                                        )
+
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+Payment ID: , Receipt Number: SGNKKLYZY
+Array
+(
+    [Body] => Array
+        (
+            [stkCallback] => Array
+                (
+                    [ResultCode] => 0
+                    [ResultDesc] => The service request is processed successfully.
+                    [CallbackMetadata] => Array
+                        (
+                            [Item] => Array
+                                (
+                                    [0] => Array
+                                        (
+                                            [Name] => MpesaReceiptNumber
+                                            [Value] => 
+                                        )
+
+                                    [1] => Array
+                                        (
+                                            [Name] => AccountReference
+                                            [Value] => 9
+                                        )
+
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+Payment ID: 9, Receipt Number: 
+Array
+(
+    [Body] => Array
+        (
+            [stkCallback] => Array
+                (
+                    [ResultCode] => 0
+                    [ResultDesc] => The service request is processed successfully.
+                    [CallbackMetadata] => Array
+                        (
+                            [Item] => Array
+                                (
+                                    [0] => Array
+                                        (
+                                            [Name] => MpesaReceiptNumber
+                                            [Value] => 
+                                        )
+
+                                    [1] => Array
+                                        (
+                                            [Name] => AccountReference
+                                            [Value] => 15
+                                        )
+
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+Payment ID: 15, Receipt Number: 
+Array
+(
+    [Body] => Array
+        (
+            [stkCallback] => Array
+                (
+                    [ResultCode] => 0
+                    [ResultDesc] => The service request is processed successfully.
+                    [CallbackMetadata] => Array
+                        (
+                            [Item] => Array
+                                (
+                                    [0] => Array
+                                        (
+                                            [Name] => MpesaReceiptNumber
+                                            [Value] => 
+                                        )
+
+                                    [1] => Array
+                                        (
+                                            [Name] => AccountReference
+                                            [Value] => 6
+                                        )
+
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+Payment ID: 6, Receipt Number: 
+Array
+(
+    [Body] => Array
+        (
+            [stkCallback] => Array
+                (
+                    [ResultCode] => 0
+                    [ResultDesc] => The service request is processed successfully.
+                    [CallbackMetadata] => Array
+                        (
+                            [Item] => Array
+                                (
+                                    [0] => Array
+                                        (
+                                            [Name] => MpesaReceiptNumber
+                                            [Value] => GFGFGFGFGFGFG
+                                        )
+
+                                    [1] => Array
+                                        (
+                                            [Name] => AccountReference
+                                            [Value] => 6
+                                        )
+
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+Payment ID: 6, Receipt Number: GFGFGFGFGFGFG
+Array
+(
+    [Body] => Array
+        (
+            [stkCallback] => Array
+                (
+                    [ResultCode] => 0
+                    [ResultDesc] => The service request is processed successfully.
+                    [CallbackMetadata] => Array
+                        (
+                            [Item] => Array
+                                (
+                                    [0] => Array
+                                        (
+                                            [Name] => MpesaReceiptNumber
+                                            [Value] => GFGFGFGFGFGFG
+                                        )
+
+                                    [1] => Array
+                                        (
+                                            [Name] => AccountReference
+                                            [Value] => 6
+                                        )
+
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+Payment ID: 6, Receipt Number: GFGFGFGFGFGFG

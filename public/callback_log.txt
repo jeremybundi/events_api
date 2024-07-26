@@ -1,0 +1,15 @@
+Array
+(
+    [Body] => Array
+        (
+            [stkCallback] => Array
+                (
+                    [MerchantRequestID] => 3b82-4048-94fd-4503f39b858f199314
+                    [CheckoutRequestID] => ws_CO_22072024165343519742504700
+                    [ResultCode] => 1037
+                    [ResultDesc] => DS timeout user cannot be reached
+                )
+
+        )
+
+)

@@ -10,7 +10,6 @@ class Booking extends Model
     public $ticket_category_id;
     public $quantity;
     public $booking_date;
-    public $status;
     public $created_at;
     public $updated_at;
 

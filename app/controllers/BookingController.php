@@ -19,30 +19,9 @@ class BookingController extends Controller
 
         // Input validation
         $validation = new Validation();
-        $validation->add(
-            'user_id',
-            new PresenceOf([
-                'message' => 'The user_id field is required',
-            ])
-        );
-        $validation->add(
-            'booking',
-            new PresenceOf([
-                'message' => 'The booking field is required',
-            ])
-        );
-        $validation->add(
-            'payment_method',
-            new PresenceOf([
-                'message' => 'The payment_method field is required',
-            ])
-        );
-        $validation->add(
-            'amount',
-            new PresenceOf([
-                'message' => 'The amount field is required',
-            ])
-        );
+        $validation->add('user_id', new PresenceOf(['message' => 'The user_id field is required']));
+        $validation->add('booking', new PresenceOf(['message' => 'The booking field is required']));
+        $validation->add('payment_method', new PresenceOf(['message' => 'The payment_method field is required']));
 
         $messages = $validation->validate($data);
         if (count($messages)) {
@@ -51,17 +30,11 @@ class BookingController extends Controller
                 $errors[] = $message->getMessage();
             }
 
-            return $response->setJsonContent([
-                'status' => 'error',
-                'message' => implode(', ', $errors),
-            ]);
+            return $response->setJsonContent(['status' => 'error', 'message' => implode(', ', $errors)]);
         }
 
         if (!is_array($data['booking']) || empty($data['booking'])) {
-            return $response->setJsonContent([
-                'status' => 'error',
-                'message' => 'Invalid input data',
-            ]);
+            return $response->setJsonContent(['status' => 'error', 'message' => 'Invalid input data']);
         }
 
         $userId = $data['user_id'];
@@ -69,10 +42,7 @@ class BookingController extends Controller
         // Check if the user exists
         $user = Users::findFirst($userId);
         if (!$user) {
-            return $response->setJsonContent([
-                'status' => 'error',
-                'message' => 'User not found for user ID: ' . $userId,
-            ]);
+            return $response->setJsonContent(['status' => 'error', 'message' => 'User not found for user ID: ' . $userId]);
         }
 
         $this->db->begin();
@@ -119,7 +89,6 @@ class BookingController extends Controller
                 $booking->ticket_category_id = $bookingData['ticket_category_id'];
                 $booking->quantity = $bookingData['quantity'];
                 $booking->booking_date = date('Y-m-d H:i:s');
-                $booking->status = 'confirmed';
                 $booking->created_at = date('Y-m-d H:i:s');
                 $booking->updated_at = date('Y-m-d H:i:s');
 
@@ -147,37 +116,33 @@ class BookingController extends Controller
                     'booking_id' => $booking->id,
                 ];
 
-                // Process Payment for each booking
-                $paymentController = new PaymentController();
-                $paymentResult = $paymentController->processPayment(
-                    $userId,
-                    $booking->id,
-                    $data['amount'],
-                    $data['payment_method'],
-                    $data['mpesa_reference'] ?? null
-                );
+                // Create ticket profiles
+                for ($i = 0; $i < $bookingData['quantity']; $i++) {
+                    $ticketProfile = new TicketProfile();
+                    $ticketProfile->user_id = $userId;
+                    $ticketProfile->booking_id = $booking->id;
+                    $ticketProfile->created_at = date('Y-m-d H:i:s');
+                    $ticketProfile->updated_at = date('Y-m-d H:i:s');
 
-                if ($paymentResult['status'] !== 'success') {
-                    throw new \Exception($paymentResult['message']);
+                    if (!$ticketProfile->save()) {
+                        throw new \Exception('Failed to save ticket profile');
+                    }
                 }
+            }
 
-                // Add to ticket_profiles table
-                $ticketProfile = new TicketProfile();
-                $ticketProfile->user_id = $userId;
-                $ticketProfile->booking_id = $booking->id;
-                $ticketProfile->created_at = date('Y-m-d H:i:s');
-                $ticketProfile->updated_at = date('Y-m-d H:i:s');
+            // Create payment record
+            $paymentController = new PaymentController();
+            $paymentResult = $paymentController->processPayment($userId, $totalAmount, $data['payment_method']);
 
-                if (!$ticketProfile->save()) {
-                    throw new \Exception('Failed to save ticket profile');
-                }
+            if ($paymentResult['status'] !== 'success') {
+                throw new \Exception($paymentResult['message']);
             }
 
             $this->db->commit();
 
             return $response->setJsonContent([
                 'status' => 'success',
-                'message' => 'Bookings and payment processed successfully',
+                'message' => 'Bookings processed successfully',
                 'booking_details' => $bookingDetails,
                 'total_amount' => $totalAmount,
             ]);

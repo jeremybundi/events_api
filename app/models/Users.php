@@ -17,6 +17,8 @@ class Users extends Model
     public $password;
     public $phone;
     public $role_id; 
+    public $otp;
+    public $otp_expires_at;
 
     public function initialize()
     {

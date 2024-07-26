@@ -3,17 +3,15 @@
 use Phalcon\Mvc\Controller;
 use Phalcon\Http\Response;
 use Firebase\JWT\JWT;
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 
 class LoginController extends Controller
 {
     public function loginAction()
     {
         $request = $this->request;
-
-       
         $jsonData = $request->getRawBody();
-
-    
         $data = json_decode($jsonData, true);
 
         if (!$data) {
@@ -31,18 +29,117 @@ class LoginController extends Controller
                                   ->setJsonContent(['error' => 'Username and password are required']);
         }
 
-       
+        // Fetch user from database
         $user = Users::findFirstByUsername($username);
 
-        if (!$user || !password_verify($password, $user->password)) {
+        if (!$user) {
             return $this->response->setStatusCode(401, 'Unauthorized')
                                   ->setContentType('application/json', 'UTF-8')
                                   ->setJsonContent(['error' => 'Invalid username or password']);
         }
 
-        $issuedAt = time();
-        $expire = $issuedAt + 3600; 
+        if (!password_verify($password, $user->password)) {
+            return $this->response->setStatusCode(401, 'Unauthorized')
+                                  ->setContentType('application/json', 'UTF-8')
+                                  ->setJsonContent(['error' => 'Invalid username or password']);
+        }
 
+        // Check if the email is valid
+        if (empty($user->email)) {
+            return $this->response->setStatusCode(400, 'Bad Request')
+                                  ->setContentType('application/json', 'UTF-8')
+                                  ->setJsonContent(['error' => 'Email not found for the user']);
+        }
+
+        // Generate and update OTP
+        $otp = rand(100000, 999999);
+        $user->otp = $otp;
+        $user->otp_expires_at = time() + 300; 
+        if (!$user->save()) {
+            return $this->response->setStatusCode(500, 'Internal Server Error')
+                                  ->setContentType('application/json', 'UTF-8')
+                                  ->setJsonContent(['error' => 'Failed to save OTP']);
+        }
+
+        // Send OTP to user's email
+        if (!$this->sendOtpEmail($user->email, $otp)) {
+            return $this->response->setStatusCode(500, 'Internal Server Error')
+                                  ->setContentType('application/json', 'UTF-8')
+                                  ->setJsonContent(['error' => 'Failed to send OTP email']);
+        }
+
+        return $this->response->setStatusCode(200, 'OK')
+                              ->setContentType('application/json', 'UTF-8')
+                              ->setJsonContent(['message' => 'OTP sent to your email.']);
+    }
+
+    private function sendOtpEmail($recipientEmail, $otp)
+    {
+        $mail = new PHPMailer(true);
+    
+        try {
+            // Server settings
+            $mail->SMTPDebug = 2; 
+            $mail->isSMTP();
+            $mail->Host       = 'smtp.gmail.com';
+            $mail->SMTPAuth   = true;
+            $mail->Username   = 'jeremybundi45@gmail.com'; 
+            $mail->Password   = 'mwpf auuq oolg pdwm'; 
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port       = 587;
+    
+            // Recipients
+            $mail->setFrom('jeremybundi4@gmail.com', 'Legit Event'); 
+            $mail->addAddress($recipientEmail); 
+    
+            // Content
+            $mail->isHTML(true);
+            $mail->Subject = 'Your OTP Code';
+            $mail->Body    = 'Your OTP code is ' . $otp;
+            $mail->AltBody = 'Your OTP code is ' . $otp;
+    
+            $mail->send();
+            error_log("OTP email sent to {$recipientEmail}");
+            return true;
+        } catch (Exception $e) {
+            // Log the error, perhaps notify the admin
+            error_log("Mailer Error: {$mail->ErrorInfo}");
+            return false;
+        }
+    }
+    
+    public function verifyOtpAction()
+    {
+        $request = $this->request;
+        $jsonData = $request->getRawBody();
+        $data = json_decode($jsonData, true);
+
+        if (!$data) {
+            return $this->response->setStatusCode(400, 'Bad Request')
+                                  ->setContentType('application/json', 'UTF-8')
+                                  ->setJsonContent(['error' => 'Invalid JSON data provided']);
+        }
+
+        $username = $data['username'] ?? null;
+        $otp = $data['otp'] ?? null;
+
+        if (!$username || !$otp) {
+            return $this->response->setStatusCode(400, 'Bad Request')
+                                  ->setContentType('application/json', 'UTF-8')
+                                  ->setJsonContent(['error' => 'Username and OTP are required']);
+        }
+
+        $user = Users::findFirstByUsername($username);
+
+        if (!$user || $user->otp !== $otp || time() > $user->otp_expires_at) {
+            return $this->response->setStatusCode(401, 'Unauthorized')
+                                  ->setContentType('application/json', 'UTF-8')
+                                  ->setJsonContent(['error' => 'Invalid or expired OTP']);
+        }
+
+        // Generate JWT token
+        $issuedAt = time();
+        $expire = $issuedAt + 3600; // 1 hour expiration
         $payload = [
             'iss' => 'YOUR_APP_URL',
             'aud' => 'YOUR_APP_URL',
@@ -50,23 +147,19 @@ class LoginController extends Controller
             'exp' => $expire,
             'data' => [
                 'userId' => $user->id,
-                'role' => $user->getRoleName(), 
+                'role' => $user->getRoleName(),
             ],
         ];
 
-    
         $config = $this->di->getConfig();
-
-      
         $secretKey = $config->jwt->secret_key;
-
         $jwt = JWT::encode($payload, $secretKey, 'HS256');
 
         return $this->response->setStatusCode(200, 'OK')
                               ->setContentType('application/json', 'UTF-8')
                               ->setJsonContent([
                                   'token' => $jwt,
-                                  'role' => $user->getRoleName(), 
+                                  'role' => $user->getRoleName(),
                               ]);
     }
 }

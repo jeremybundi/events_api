@@ -13,6 +13,11 @@ $router->addPost('/user/login', [
     'controller' => 'login',
     'action' => 'login',
 ]);
+ //verify with otp
+ $router->addPost('/verify/otp', [
+    'controller' => 'login',
+    'action' => 'verifyOtp',
+]);
 //add event
 $router->addPost('/event/add', [
     'controller' => 'event',
@@ -33,5 +38,27 @@ $router->addPost('/booking/create', [
 $router->addGet('/get/tickets/{userId}', [
     'controller' => 'ticketprofile',
     'action' => 'getTickets'
+]);
+
+//pay
+$router->add(
+    '/transaction/pay/{id}',
+    [
+        'controller' => 'transaction',
+        'action'     => 'pay',
+    ]
+);
+
+//card pay
+
+$router->addGet('/card/payment/{paymentId}', [
+    'controller' => 'payment',
+    'action' => 'initiateCardPayment'
+]);
+//callback
+
+$router->addGet('/card/payment/{paymentId}', [
+    'controller' => 'payment',
+    'action' => 'mpesaCallback'
 ]);
 $router->handle($_SERVER['REQUEST_URI']);
