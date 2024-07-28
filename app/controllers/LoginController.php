@@ -139,7 +139,7 @@ class LoginController extends Controller
 
         // Generate JWT token
         $issuedAt = time();
-        $expire = $issuedAt + 3600; 
+        $expire = $issuedAt + 36000; 
         $payload = [
             'iss' => 'YOUR_APP_URL',
             'aud' => 'YOUR_APP_URL',

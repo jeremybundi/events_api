@@ -1,6 +1,9 @@
 <?php
+
 use Phalcon\Mvc\Controller;
 use Phalcon\Http\Response;
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 
 class TicketProfileController extends Controller
 {
@@ -9,11 +12,32 @@ class TicketProfileController extends Controller
         $this->view->disable();
     }
 
-    public function getTicketsAction($userId)
+    private function getUserIdFromToken()
+    {
+        $authHeader = $this->request->getHeader('Authorization');
+        if (!$authHeader) {
+            throw new \Exception('No authorization header provided');
+        }
+
+        $token = str_replace('Bearer ', '', $authHeader);
+        $config = $this->di->getConfig();
+        $secretKey = $config->jwt->secret_key;
+
+        try {
+            $decoded = JWT::decode($token, new Key($secretKey, 'HS256'));
+            return $decoded->data->userId;
+        } catch (\Exception $e) {
+            throw new \Exception('Invalid or expired token');
+        }
+    }
+
+    public function getTicketsAction()
     {
         $response = new Response();
 
         try {
+            $userId = $this->getUserIdFromToken();
+
             // Check if user exists
             $user = Users::findFirstById($userId);
             if (!$user) {
@@ -64,16 +88,18 @@ class TicketProfileController extends Controller
         }
     }
 
-    public function getPaidTicketsAction($userId)
+    public function getPaidTicketsAction()
     {
         $response = new Response();
 
         try {
+            $userId = $this->getUserIdFromToken();
+
             // Check if user exists
             $user = Users::findFirstById($userId);
             if (!$user) {
                 return $response->setStatusCode(404, 'Not Found')
-                                    ->setJsonContent(['status' => 'error', 'message' => 'User not found']);
+                                ->setJsonContent(['status' => 'error', 'message' => 'User not found']);
             }
 
             // Create the query builder instance
@@ -120,5 +146,4 @@ class TicketProfileController extends Controller
                             ]);
         }
     }
-
 }

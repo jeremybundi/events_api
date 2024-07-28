@@ -50,12 +50,12 @@ $router->addPost('/booking/create', [
 ]);
 //get tickets
 
-$router->addGet('/get/tickets/{userId}', [
+$router->addGet('/get/tickets', [
     'controller' => 'ticketprofile',
     'action' => 'getTickets'
 ]);
 // get paid tickets
-$router->addGet('/tickets/paid/{userId}', [
+$router->addGet('/tickets/paid', [
     'controller' => 'TicketProfile',
     'action' => 'getPaidTickets'
 ]);

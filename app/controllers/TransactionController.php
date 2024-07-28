@@ -1,6 +1,9 @@
 <?php
+
 use Phalcon\Mvc\Controller;
 use Phalcon\Http\Response;
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 
 class TransactionController extends Controller
 {
@@ -16,8 +19,40 @@ class TransactionController extends Controller
         $this->response = new Response();
     }
 
+    private function getUserIdFromToken()
+    {
+        $authHeader = $this->request->getHeader('Authorization');
+        if (!$authHeader) {
+            throw new \Exception('No authorization header provided');
+        }
+
+        $token = str_replace('Bearer ', '', $authHeader);
+        $config = $this->di->getConfig();
+        $secretKey = $config->jwt->secret_key;
+
+        try {
+            $decoded = JWT::decode($token, new Key($secretKey, 'HS256'));
+            return $decoded->data->userId;
+        } catch (\Exception $e) {
+            throw new \Exception('Invalid or expired token');
+        }
+    }
+
+    private function requireAuth()
+    {
+        try {
+            return $this->getUserIdFromToken();
+        } catch (\Exception $e) {
+            return $this->response->setStatusCode(401, 'Unauthorized')
+                                  ->setJsonContent(['status' => 'error', 'message' => $e->getMessage()])
+                                  ->send();
+        }
+    }
+
     public function payAction($id)
     {
+        $this->requireAuth();
+
         $payment = Payment::findFirstById($id);
 
         if (!$payment) {
@@ -29,12 +64,10 @@ class TransactionController extends Controller
         $amount = $payment->total_amount;
         $userId = $payment->user_id;
 
-      
         if (is_null($amount)) {
             return $this->sendErrorResponse('Total amount not found or is null');
         }
 
-        
         $data = $this->request->getJsonRawBody();
         $phoneNumber = isset($data->phoneNumber) ? $data->phoneNumber : null;
 
@@ -78,8 +111,6 @@ class TransactionController extends Controller
             return $this->sendErrorResponse('Invalid amount or user ID');
         }
 
-      
-       
         return $this->sendSuccessResponse('Card payment processed', $amount, $userId, $paymentMethod);
     }
 
@@ -150,6 +181,7 @@ class TransactionController extends Controller
 
         return $response['access_token'];
     }
+
     public function callbackAction()
     {
         $request = $this->request->getJsonRawBody(true);
@@ -231,7 +263,6 @@ class TransactionController extends Controller
         }
         return null;
     }
-
 
     private function sendErrorResponse($message)
     {
