@@ -22,7 +22,7 @@ class EventController extends Controller
             throw new \Exception('Invalid authorization token format');
         }
     
-        $jwt = substr($authHeader, 7); // Extract the token after "Bearer "
+        $jwt = substr($authHeader, 7); 
         if (!$jwt) {
             throw new \Exception('Invalid authorization token format');
         }
@@ -110,7 +110,7 @@ class EventController extends Controller
     
                 return $response->setJsonContent([
                     'status' => 'error',
-                    'message' => $e->getMessage()
+                    'message' => $e->getMessage()      
                 ]);
             }
     

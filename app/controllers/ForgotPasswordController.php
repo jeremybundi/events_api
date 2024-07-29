@@ -90,8 +90,8 @@ class ForgotPasswordController extends Controller
 
         // Reset password
         $user->password = password_hash($newPassword, PASSWORD_BCRYPT);
-      // $user->otp = null;
-       // $user->otp_expires_at = null;
+        $user->otp = null;
+        $user->otp_expires_at = null;
 
         if (!$user->save()) {
             return $this->response->setStatusCode(500, 'Internal Server Error')
