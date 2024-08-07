@@ -162,6 +162,7 @@ class BookingController extends Controller
                 'message' => 'Bookings processed successfully',
                 'booking_details' => $bookingDetails,
                 'total_amount' => $totalAmount,
+                'payment_status_id' => 0,
             ]);
 
         } catch (\Exception $e) {

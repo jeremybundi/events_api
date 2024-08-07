@@ -66,12 +66,12 @@ class UserController extends Controller
                 }
 
                 $this->response->setStatusCode(200, 'OK');
-                $this->response->setContent(json_encode(['message' => 'User exists. OTP resent to your email. Please verify your account.']));
+                $this->response->setContent(json_encode(['message' => 'User exists. OTP resent to your email. Please verify your account!!']));
                 return $this->response;
             } else {
                 // User exists and already verified
                 $this->response->setStatusCode(400, 'Bad Request');
-                $this->response->setContent(json_encode(['error' => 'User already exists and is verified.']));
+                $this->response->setContent(json_encode(['error' => 'User already exists and is verified!!']));
                 return $this->response;
             }
         }

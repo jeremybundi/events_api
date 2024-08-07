@@ -35,7 +35,7 @@ class ForgotPasswordController extends Controller
         // Generate OTP
         $otp = rand(100000, 999999);
         $user->otp = $otp;
-        $user->otp_expires_at = time() + 300; // OTP expires in 5 minutes
+        $user->otp_expires_at = time() + 300; 
         $user->save();
 
         // Send OTP email
@@ -90,7 +90,6 @@ class ForgotPasswordController extends Controller
         $user->password = password_hash($newPassword, PASSWORD_BCRYPT);
         $user->otp = null;
         $user->otp_expires_at = null;
-        //$user->is_verified = 1; 
 
         if (!$user->save()) {
             return $this->response->setStatusCode(500, 'Internal Server Error')
