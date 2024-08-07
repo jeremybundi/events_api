@@ -1,4 +1,5 @@
 <?php
+
 use Phalcon\Mvc\Controller;
 use Phalcon\Http\Response;
 use Firebase\JWT\JWT;
@@ -7,6 +8,14 @@ use PHPMailer\PHPMailer\Exception;
 
 class LoginController extends Controller
 {
+    public function initialize()
+    {
+        // Start the session
+        if (session_status() == PHP_SESSION_NONE) {
+            session_start();
+        }
+    }
+
     public function loginAction()
     {
         $request = $this->request;
@@ -37,6 +46,7 @@ class LoginController extends Controller
                                   ->setJsonContent(['error' => 'Invalid username or password']);
         }
 
+        // Check if the user is verified
         if ($user->is_verified != 1) {
             return $this->response->setStatusCode(401, 'Unauthorized')
                                   ->setContentType('application/json', 'UTF-8')
@@ -49,42 +59,37 @@ class LoginController extends Controller
                                   ->setJsonContent(['error' => 'Invalid username or password']);
         }
 
-        // Generate session ID
-        $sessionId = bin2hex(random_bytes(16));
+        // Check if the email is valid
+        if (empty($user->email)) {
+            return $this->response->setStatusCode(400, 'Bad Request')
+                                  ->setContentType('application/json', 'UTF-8')
+                                  ->setJsonContent(['error' => 'Email not found for the user']);
+        }
 
-        // Update user's session ID in the database
-        $user->session_id = $sessionId;
+        // Generate and update OTP
+        $otp = rand(100000, 999999);
+        $user->otp = $otp;
+        $user->otp_expires_at = time() + 300;
         if (!$user->save()) {
             return $this->response->setStatusCode(500, 'Internal Server Error')
                                   ->setContentType('application/json', 'UTF-8')
-                                  ->setJsonContent(['error' => 'Failed to update session ID']);
+                                  ->setJsonContent(['error' => 'Failed to save OTP']);
         }
 
-        // Generate JWT token with session ID
-        $issuedAt = time();
-        $expire = $issuedAt + 36000;
-        $payload = [
-            'iss' => 'YOUR_APP_URL',
-            'aud' => 'YOUR_APP_URL',
-            'iat' => $issuedAt,
-            'exp' => $expire,
-            'data' => [
-                'userId' => $user->id,
-                'role' => $user->getRoleName(),
-                'sessionId' => $sessionId,
-            ],
-        ];
+        // Send OTP to user's email
+        if (!$this->sendOtpEmail($user->email, $otp)) {
+            return $this->response->setStatusCode(500, 'Internal Server Error')
+                                  ->setContentType('application/json', 'UTF-8')
+                                  ->setJsonContent(['error' => 'Failed to send OTP email']);
+        }
 
-        $config = $this->di->getConfig();
-        $secretKey = $config->jwt->secret_key;
-        $jwt = JWT::encode($payload, $secretKey, 'HS256');
+        // Set session data after OTP is sent
+        $_SESSION['username'] = $username;
+        $_SESSION['otp_sent_time'] = time();
 
         return $this->response->setStatusCode(200, 'OK')
                               ->setContentType('application/json', 'UTF-8')
-                              ->setJsonContent([
-                                  'token' => $jwt,
-                                  'role' => $user->getRoleName(),
-                              ]);
+                              ->setJsonContent(['message' => 'OTP sent to your email.']);
     }
 
     private function sendOtpEmail($recipientEmail, $otp)
@@ -93,17 +98,17 @@ class LoginController extends Controller
 
         try {
             // Server settings
-            $mail->SMTPDebug = 2;
+            $mail->SMTPDebug = 0; 
             $mail->isSMTP();
             $mail->Host       = 'smtp.gmail.com';
             $mail->SMTPAuth   = true;
-            $mail->Username   = 'your_email@gmail.com'; // Update with your email
-            $mail->Password   = 'your_password'; // Update with your email password or app-specific password
+            $mail->Username   = 'jeremybundi45@gmail.com';
+            $mail->Password   = 'mwpfauuqoolgpdwm'; 
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->Port       = 587;
 
             // Recipients
-            $mail->setFrom('your_email@gmail.com', 'Your Name or App Name'); // Update with your email and name
+            $mail->setFrom('jeremybundi45@gmail.com', 'Legacy');
             $mail->addAddress($recipientEmail);
 
             // Content
@@ -161,7 +166,6 @@ class LoginController extends Controller
             'data' => [
                 'userId' => $user->id,
                 'role' => $user->getRoleName(),
-                'sessionId' => $user->session_id,
             ],
         ];
 
@@ -169,46 +173,18 @@ class LoginController extends Controller
         $secretKey = $config->jwt->secret_key;
         $jwt = JWT::encode($payload, $secretKey, 'HS256');
 
+        // Set session data after successful login
+        $_SESSION['user_id'] = $user->id;
+        $_SESSION['role'] = $user->getRoleName();
+        $_SESSION['token'] = $jwt;
+
         return $this->response->setStatusCode(200, 'OK')
                               ->setContentType('application/json', 'UTF-8')
                               ->setJsonContent([
                                   'token' => $jwt,
                                   'role' => $user->getRoleName(),
+                                  'name' => $user->first_name,
+                                  'session_id' => session_id(), 
                               ]);
-    }
-
-    public function someProtectedAction()
-    {
-        $authHeader = $this->request->getHeader('Authorization');
-        if (!$authHeader) {
-            return $this->response->setStatusCode(401, 'Unauthorized')
-                                  ->setContentType('application/json', 'UTF-8')
-                                  ->setJsonContent(['error' => 'Authorization header missing']);
-        }
-
-        $jwt = str_replace('Bearer ', '', $authHeader);
-        $config = $this->di->getConfig();
-        $secretKey = $config->jwt->secret_key;
-
-        try {
-            $decoded = JWT::decode($jwt, $secretKey, ['HS256']);
-        } catch (Exception $e) {
-            return $this->response->setStatusCode(401, 'Unauthorized')
-                                  ->setContentType('application/json', 'UTF-8')
-                                  ->setJsonContent(['error' => 'Invalid token']);
-        }
-
-        $userId = $decoded->data->userId;
-        $sessionId = $decoded->data->sessionId;
-
-        $user = Users::findFirstById($userId);
-
-        if (!$user || $user->session_id !== $sessionId) {
-            return $this->response->setStatusCode(401, 'Unauthorized')
-                                  ->setContentType('application/json', 'UTF-8')
-                                  ->setJsonContent(['error' => 'Invalid session']);
-        }
-
-        // Proceed with the action
     }
 }

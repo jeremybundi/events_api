@@ -43,6 +43,11 @@ $router->addPut('/event/edit/{id}', [
     'controller' => 'event',
     'action' => 'edit'
 ]);
+//get events
+$router->addGet('/event/get', [
+    'controller' => 'event',
+    'action' => 'list'
+]);
 //book
 $router->addPost('/booking/create', [
     'controller' => 'booking',

@@ -220,5 +220,59 @@ class EventController extends Controller
         }
     }
     
-    
+    public function listAction()
+    {
+        $response = new Response();
+
+        try {
+            // Validate the user's role
+            $this->validateRole(['System support', 'Admin', 'User']);
+
+            // Retrieve all events from the database
+            $events = Event::find();
+
+            if (!$events) {
+                return $response->setJsonContent([
+                    'status' => 'error',
+                    'message' => 'No events found'
+                ]);
+            }
+
+            // Prepare the data to be returned
+            $eventsData = [];
+            foreach ($events as $event) {
+                $eventsData[] = [
+                    'id' => $event->id,
+                    'name' => $event->name,
+                    'date' => $event->date,
+                    'start_time' => $event->start_time,
+                    'end_time' => $event->end_time,
+                    'venue' => $event->venue,
+                    'description' => $event->description,
+                    'total_tickets' => $event->total_tickets,
+                    'image_url'=> $event->image_url,
+                    'ticket_categories' => TicketCategory::find([
+                        'conditions' => 'event_id = ?1',
+                        'bind'       => [
+                            1 => $event->id
+                        ]
+                    ])->toArray()
+                ];
+            }
+
+            // Return the events data as JSON
+            return $response->setJsonContent([
+                'status' => 'success',
+                'data' => $eventsData
+            ]);
+
+        } catch (\Exception $e) {
+            return $response->setStatusCode(401, 'Unauthorized')
+                            ->setJsonContent([
+                                'status' => 'error',
+                                'message' => $e->getMessage()
+                            ]);
+        }
+    }
+
 }

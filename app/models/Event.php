@@ -14,6 +14,7 @@ class Event extends Model
     public $total_tickets;
     public $created_at;
     public $updated_at;
+    public $image_url;
 
     public function initialize()
     {

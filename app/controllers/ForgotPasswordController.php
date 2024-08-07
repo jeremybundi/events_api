@@ -8,7 +8,7 @@ use PHPMailer\PHPMailer\Exception;
 class ForgotPasswordController extends Controller
 {
     public function sendOtpAction()
-       {
+    {
         $request = $this->request;
         $jsonData = $request->getRawBody();
         $data = json_decode($jsonData, true);
@@ -21,36 +21,34 @@ class ForgotPasswordController extends Controller
 
         $username = $data['username'];
 
-        error_log(json_encode($data)); // For debugging
-        error_log($username); // For debugging
+        error_log(json_encode($data)); 
+        error_log($username); 
 
         $user = Users::findFirstByUsername($username);
 
-   
-           if (!$user) {
-               return $this->response->setStatusCode(404, 'Not Found')
-                                     ->setContentType('application/json', 'UTF-8')
-                                     ->setJsonContent(['error' => 'User not found']);
-           }
-   
-           // Generate OTP
-           $otp = rand(100000, 999999);
-           $user->otp = $otp;
-           $user->otp_expires_at = time() + 300;
-           $user->save();
-   
-           // Send OTP email
-           if (!$this->sendOtpEmail($user->email, $otp)) {
-               return $this->response->setStatusCode(500, 'Internal Server Error')
-                                     ->setContentType('application/json', 'UTF-8')
-                                     ->setJsonContent(['error' => 'Failed to send OTP email']);
-           }
-   
-           return $this->response->setStatusCode(200, 'OK')
-                                 ->setContentType('application/json', 'UTF-8')
-                                 ->setJsonContent(['message' => 'OTP sent to your email']);
-       }
-   
+        if (!$user) {
+            return $this->response->setStatusCode(404, 'Not Found')
+                                  ->setContentType('application/json', 'UTF-8')
+                                  ->setJsonContent(['error' => 'User not found']);
+        }
+
+        // Generate OTP
+        $otp = rand(100000, 999999);
+        $user->otp = $otp;
+        $user->otp_expires_at = time() + 300; // OTP expires in 5 minutes
+        $user->save();
+
+        // Send OTP email
+        if (!$this->sendOtpEmail($user->email, $otp)) {
+            return $this->response->setStatusCode(500, 'Internal Server Error')
+                                  ->setContentType('application/json', 'UTF-8')
+                                  ->setJsonContent(['error' => 'Failed to send OTP email']);
+        }
+
+        return $this->response->setStatusCode(200, 'OK')
+                              ->setContentType('application/json', 'UTF-8')
+                              ->setJsonContent(['message' => 'OTP sent to your email']);
+    }
 
     public function verifyOtpAndResetPasswordAction()
     {
@@ -88,10 +86,11 @@ class ForgotPasswordController extends Controller
                                   ->setJsonContent(['error' => 'Invalid or expired OTP']);
         }
 
-        // Reset password
+        // Reset password and update verification status
         $user->password = password_hash($newPassword, PASSWORD_BCRYPT);
         $user->otp = null;
         $user->otp_expires_at = null;
+        //$user->is_verified = 1; 
 
         if (!$user->save()) {
             return $this->response->setStatusCode(500, 'Internal Server Error')
@@ -110,12 +109,12 @@ class ForgotPasswordController extends Controller
 
         try {
             // Server settings
-            $mail->SMTPDebug = 0; // Set to 2 for debugging
+            $mail->SMTPDebug = 2;
             $mail->isSMTP();
             $mail->Host       = 'smtp.gmail.com';
             $mail->SMTPAuth   = true;
-            $mail->Username   = 'jeremybundi45@gmail.com'; // Replace with your email
-            $mail->Password   = 'mwpf auuq oolg pdwm'; // Replace with your password
+            $mail->Username   = 'jeremybundi45@gmail.com'; 
+            $mail->Password   = 'mwpf auuq oolg pdwm'; 
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->Port       = 587;
 

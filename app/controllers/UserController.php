@@ -1,4 +1,5 @@
 <?php
+
 use Phalcon\Mvc\Controller;
 use Phalcon\Http\Response;
 use PHPMailer\PHPMailer\PHPMailer;
@@ -15,22 +16,67 @@ class UserController extends Controller
         if ($request->getContentType() === 'application/json') {
             $data = json_decode($request->getRawBody(), true);
 
-            $firstName = isset($data['first_name']) ? $data['first_name'] : null;
-            $lastName = isset($data['second_name']) ? $data['second_name'] : null;
             $username = isset($data['username']) ? $data['username'] : null;
             $email = isset($data['email']) ? $data['email'] : null;
             $password = isset($data['password']) ? $data['password'] : null;
+            $firstName = isset($data['first_name']) ? $data['first_name'] : null;
+            $lastName = isset($data['second_name']) ? $data['second_name'] : null;
             $phone = isset($data['phone']) ? $data['phone'] : null;
         } else {
-            $firstName = $request->getPost('first_name', 'string');
-            $lastName = $request->getPost('second_name', 'string');
             $username = $request->getPost('username', 'string');
             $email = $request->getPost('email', 'email');
             $password = $request->getPost('password', 'string');
+            $firstName = $request->getPost('first_name', 'string');
+            $lastName = $request->getPost('second_name', 'string');
             $phone = $request->getPost('phone', 'string');
         }
 
-        // Create a new user object
+        // Check if user already exists
+        $existingUser = Users::findFirst([
+            'conditions' => 'email = :email: OR username = :username:',
+            'bind' => [
+                'email' => $email,
+                'username' => $username
+            ]
+        ]);
+
+        if ($existingUser) {
+            if ($existingUser->is_verified == 0) {
+                // User exists but not verified, resend OTP
+                $otp = rand(100000, 999999);
+                $existingUser->otp = $otp;
+                $existingUser->otp_expires_at = time() + 300;
+
+                if ($existingUser->save() === false) {
+                    $errors = [];
+                    foreach ($existingUser->getMessages() as $message) {
+                        $errors[] = $message->getMessage();
+                    }
+
+                    $this->response->setStatusCode(400, 'Bad Request');
+                    $this->response->setContent(json_encode(['errors' => $errors]));
+                    return $this->response;
+                }
+
+                // Resend OTP
+                if (!$this->sendOtpEmail($existingUser->email, $otp)) {
+                    $this->response->setStatusCode(500, 'Internal Server Error');
+                    $this->response->setContent(json_encode(['error' => 'Failed to resend OTP email']));
+                    return $this->response;
+                }
+
+                $this->response->setStatusCode(200, 'OK');
+                $this->response->setContent(json_encode(['message' => 'User exists. OTP resent to your email. Please verify your account.']));
+                return $this->response;
+            } else {
+                // User exists and already verified
+                $this->response->setStatusCode(400, 'Bad Request');
+                $this->response->setContent(json_encode(['error' => 'User already exists and is verified.']));
+                return $this->response;
+            }
+        }
+
+        // If user doesn't exist, create new user
         $user = new Users();
         $user->first_name = $firstName;
         $user->second_name = $lastName;
@@ -76,7 +122,7 @@ class UserController extends Controller
 
         try {
             // Server settings
-            $mail->SMTPDebug = 0; 
+            $mail->SMTPDebug = 2; 
             $mail->isSMTP();
             $mail->Host       = 'smtp.gmail.com';
             $mail->SMTPAuth   = true;
@@ -147,5 +193,4 @@ class UserController extends Controller
                               ->setContentType('application/json', 'UTF-8')
                               ->setJsonContent(['message' => 'User verified successfully.']);
     }
-   
 }
