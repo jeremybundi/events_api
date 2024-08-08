@@ -73,9 +73,8 @@ $router->add(
     ]
 );
 //callback
-
-$router->addGet('/card/payment/{paymentId}', [
-    'controller' => 'payment',
-    'action' => 'mpesaCallback'
+$router->addPost('/transaction/callback', [
+    'controller' => 'transaction',
+    'action' => 'callback'
 ]);
 $router->handle($_SERVER['REQUEST_URI']);

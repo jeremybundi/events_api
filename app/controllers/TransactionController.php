@@ -189,7 +189,6 @@ class TransactionController extends Controller
         // Use absolute path for logs directory
         $logDir = __DIR__ . '/../logs';
         $logFilePath = $logDir . '/callback_logs.txt';
-        $errorLogFilePath = $logDir . '/error_logs.txt';
 
         // Ensure the directory exists and is writable
         if (!is_dir($logDir)) {
@@ -202,7 +201,6 @@ class TransactionController extends Controller
         // Log the entire callback request for debugging purposes
         $logData = print_r($request, true);
         if (file_put_contents($logFilePath, $logData, FILE_APPEND) === false) {
-            file_put_contents($errorLogFilePath, "Failed to write to callback_logs.txt\n", FILE_APPEND);
             return $this->sendErrorResponse('Failed to write to log file');
         }
 
@@ -221,7 +219,6 @@ class TransactionController extends Controller
                 // Log successful callback details
                 $logData = "Payment ID: $paymentId, Receipt Number: $mpesaReceiptNumber\n";
                 if (file_put_contents($logFilePath, $logData, FILE_APPEND) === false) {
-                    file_put_contents($errorLogFilePath, "Failed to write successful transaction to callback_logs.txt\n", FILE_APPEND);
                     return $this->sendErrorResponse('Failed to write to log file');
                 }
 
@@ -235,21 +232,18 @@ class TransactionController extends Controller
                     if ($payment->save()) {
                         return $this->sendSuccessResponse('Payment successful', $payment->total_amount, $payment->user_id, 'mpesa');
                     } else {
-                        // Log errors if save fails
-                        $messages = $payment->getMessages();
-                        foreach ($messages as $message) {
-                            file_put_contents($errorLogFilePath, $message->getMessage() . "\n", FILE_APPEND);
-                        }
-                        return $this->sendErrorResponse('Failed to update payment record: ' . implode(', ', $messages));
+                        return $this->sendErrorResponse('Failed to update payment record');
                     }
                 } else {
                     return $this->sendErrorResponse('Payment record not found');
                 }
+            } elseif ($resultCode == 1) {
+                // Insufficient balance
+                return $this->sendErrorResponse('Payment failed due to insufficient balance: ' . $resultDesc);
             } else {
                 return $this->sendErrorResponse('Payment failed: ' . $resultDesc);
             }
         } else {
-            file_put_contents($errorLogFilePath, "Invalid callback data\n", FILE_APPEND);
             return $this->sendErrorResponse('Invalid callback data');
         }
     }
@@ -257,46 +251,47 @@ class TransactionController extends Controller
     private function getCallbackItemValue($items, $key)
     {
         foreach ($items as $item) {
-            if ($item['Name'] === $key) {
+            if ($item['Name'] == $key) {
                 return $item['Value'];
             }
         }
         return null;
     }
 
-    private function sendErrorResponse($message)
-    {
-        return $this->response->setJsonContent([
-            'status' => 'error',
-            'message' => $message
-        ])->send();
-    }
-
-    private function sendSuccessResponse($message, $amount = null, $userId = null, $paymentMethod = null)
-    {
-        return $this->response->setJsonContent([
-            'status' => 'success',
-            'message' => $message,
-            'data' => [
-                'amount' => $amount,
-                'user_id' => $userId, 
-                'payment_method' => $paymentMethod
-            ]
-        ])->send();
-    }
-
     private function isInvalidAmount($amount)
     {
-        return !is_numeric($amount) || $amount <= 0;       
+        return $amount <= 0;
     }
 
     private function isInvalidPhoneNumber($phoneNumber)
     {
-        return empty($phoneNumber) || !is_numeric($phoneNumber) || strlen($phoneNumber) != 12;
+        return !preg_match('/^\d{10}$/', $phoneNumber);
     }
 
     private function isInvalidUserId($userId)
     {
-        return empty($userId) || !is_numeric($userId);
+        return empty($userId);
+    }
+
+    private function sendSuccessResponse($message, $amount, $userId, $paymentMethod)
+    {
+        $this->response->setJsonContent([
+            'status' => 'success',
+            'message' => $message,
+            'amount' => $amount,
+            'user_id' => $userId,
+            'payment_method' => $paymentMethod
+        ]);
+        return $this->response->send();
+    }
+
+    private function sendErrorResponse($message)
+    {
+        $this->response->setStatusCode(400, 'Bad Request');
+        $this->response->setJsonContent([
+            'status' => 'error',
+            'message' => $message
+        ]);
+        return $this->response->send();
     }
 }
