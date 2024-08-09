@@ -77,12 +77,12 @@ $router->addPost('/transaction/callback', [
     'controller' => 'transaction',
     'action' => 'callback'
 ]);
-//barcode
+/*barcode
 $router->add(
     '/transaction/barcode/{id:[0-9]+}',
     [
         'controller' => 'transaction',
         'action'     => 'pay',
     ]
-);
+);*/
 $router->handle($_SERVER['REQUEST_URI']);

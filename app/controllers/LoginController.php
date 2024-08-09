@@ -71,9 +71,14 @@ class LoginController extends Controller
         $user->otp = $otp;
         $user->otp_expires_at = time() + 300;
         if (!$user->save()) {
+            $messages = $user->getMessages();
+            $errorMessages = [];
+            foreach ($messages as $message) {
+                $errorMessages[] = (string) $message;
+            }
             return $this->response->setStatusCode(500, 'Internal Server Error')
                                   ->setContentType('application/json', 'UTF-8')
-                                  ->setJsonContent(['error' => 'Failed to save OTP']);
+                                  ->setJsonContent(['error' => 'Failed to save OTP', 'details' => $errorMessages]);
         }
 
         // Send OTP to user's email

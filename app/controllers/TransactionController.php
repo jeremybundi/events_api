@@ -7,7 +7,7 @@ use Firebase\JWT\Key;
 
 class TransactionController extends Controller
 {
-    const MPESA_CONSUMER_KEY = 'FRgqLoVwjGEGomglkNJfspqlkPX7uyk9TwtZt9508xPMOoqF';
+    const MPESA_CONSUMER_KEY = 'FRgqLoVwjGEGomglkNJfspqlgPX7uyk9TwtZt9508xPMOoqF';
     const MPESA_CONSUMER_SECRET = 'a8tM9QuyTGb2MXLmlWKc9pczBAfd4RHEZxZkjIHGeyKbzdCA1ask2qOj9ymFaR98';
     const MPESA_SHORT_CODE = '174379';
     const MPESA_PASSKEY = 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919';
@@ -59,7 +59,7 @@ class TransactionController extends Controller
             return $this->sendErrorResponse('Payment not found');
         }
 
-        $paymentId = $payment->id;
+        $paymentId = $payment->id; 
         $paymentMethod = $payment->payment_method;
         $amount = $payment->total_amount;
         $userId = $payment->user_id;
@@ -69,20 +69,17 @@ class TransactionController extends Controller
         }
 
         $data = $this->request->getJsonRawBody();
+        $phoneNumber = isset($data->phoneNumber) ? $data->phoneNumber : null;
+
+        if (!$phoneNumber) {
+            return $this->sendErrorResponse('Phone number is required');
+        }
 
         switch ($paymentMethod) {
             case 'mpesa':
-                $phoneNumber = isset($data->phoneNumber) ? $data->phoneNumber : null;
-                if (!$phoneNumber) {
-                    return $this->sendErrorResponse('Phone number is required');
-                }
                 return $this->processMpesaPayment($amount, $phoneNumber, $paymentMethod, $paymentId, $userId);
             case 'card':
-                $barcodeData = isset($data->barcodeData) ? $data->barcodeData : null;
-                if (!$barcodeData) {
-                    return $this->sendErrorResponse('Barcode data is required');
-                }
-                return $this->processBarcodePayment($amount, $userId, $paymentMethod, $paymentId, $barcodeData);
+                return $this->processCardPayment($amount, $userId, $paymentMethod);
             default:
                 return $this->sendErrorResponse('Invalid payment method');
         }
@@ -90,11 +87,13 @@ class TransactionController extends Controller
 
     private function processMpesaPayment($amount, $phoneNumber, $paymentMethod, $paymentId, $userId)
     {
+        // Validate amount and phoneNumber
         if ($this->isInvalidAmount($amount) || $this->isInvalidPhoneNumber($phoneNumber)) {
             return $this->sendErrorResponse('Invalid amount or phone number');
         }
 
-        $callbackUrl = 'https://your-ngrok-url/transaction/callback'; 
+        // M-Pesa STK push logic
+        $callbackUrl = 'https://9cfa-196-216-68-178.ngrok-free.app/transaction/callback'; 
 
         $mpesaResponse = $this->initiateMpesaStkPush($amount, $phoneNumber, $callbackUrl, $paymentId);
 
@@ -105,47 +104,21 @@ class TransactionController extends Controller
         }
     }
 
-    private function processBarcodePayment($amount, $userId, $paymentMethod, $paymentId, $barcodeData)
+    private function processCardPayment($amount, $userId, $paymentMethod)
     {
+        // Validate amount and userId
         if ($this->isInvalidAmount($amount) || $this->isInvalidUserId($userId)) {
             return $this->sendErrorResponse('Invalid amount or user ID');
         }
 
-        // Simulate barcode scan logic here, including validation of the barcode data
-        $isValidBarcode = $this->validateBarcodeData($barcodeData, $amount);
-
-        if (!$isValidBarcode) {
-            return $this->sendErrorResponse('Insufficient funds or invalid barcode');
-        }
-
-        // If barcode is valid, proceed to process the payment
-        $payment = Payment::findFirstById($paymentId);
-        if ($payment) {
-            $payment->payment_status_id = 1; // Mark payment as successful
-            if ($payment->save()) {
-                return $this->sendSuccessResponse('Barcode payment processed successfully', $amount, $userId, $paymentMethod);
-            } else {
-                return $this->sendErrorResponse('Failed to update payment record');
-            }
-        } else {
-            return $this->sendErrorResponse('Payment record not found');
-        }
-    }
-
-    private function validateBarcodeData($barcodeData, $amount)
-    {
-        // Implement logic to validate the barcode data and check if there are sufficient funds
-        // For now, we'll simulate this with a simple check
-        if ($barcodeData === 'VALID_BARCODE' && $amount <= 1000) { // Example condition
-            return true;
-        }
-        return false;
+        return $this->sendSuccessResponse('Card payment processed', $amount, $userId, $paymentMethod);
     }
 
     private function initiateMpesaStkPush($amount, $phoneNumber, $callbackUrl, $paymentId)
     {
         $accessToken = $this->generateMpesaAccessToken(self::MPESA_CONSUMER_KEY, self::MPESA_CONSUMER_SECRET);
 
+        // STK push request payload
         $timestamp = date('YmdHis');
         $password = base64_encode(self::MPESA_SHORT_CODE . self::MPESA_PASSKEY . $timestamp);
 
@@ -155,11 +128,11 @@ class TransactionController extends Controller
             'Timestamp' => $timestamp,
             'TransactionType' => 'CustomerPayBillOnline',
             'Amount' => $amount,
-            'PartyA' => $phoneNumber,
+            'PartyA' => $phoneNumber, 
             'PartyB' => self::MPESA_SHORT_CODE,
-            'PhoneNumber' => $phoneNumber,
+            'PhoneNumber' => $phoneNumber, 
             'CallBackURL' => $callbackUrl,
-            'AccountReference' => $paymentId,
+            'AccountReference' => $paymentId, 
             'TransactionDesc' => 'Payment for order'
         ];
 
@@ -213,9 +186,12 @@ class TransactionController extends Controller
     {
         $request = $this->request->getJsonRawBody(true);
 
+        // Use absolute path for logs directory
         $logDir = __DIR__ . '/../logs';
         $logFilePath = $logDir . '/callback_logs.txt';
+        $errorLogFilePath = $logDir . '/error_logs.txt';
 
+        // Ensure the directory exists and is writable
         if (!is_dir($logDir)) {
             mkdir($logDir, 0777, true);
         }
@@ -223,46 +199,104 @@ class TransactionController extends Controller
             chmod($logDir, 0777);
         }
 
+        // Log the entire callback request for debugging purposes
         $logData = print_r($request, true);
         if (file_put_contents($logFilePath, $logData, FILE_APPEND) === false) {
+            file_put_contents($errorLogFilePath, "Failed to write to callback_logs.txt\n", FILE_APPEND);
             return $this->sendErrorResponse('Failed to write to log file');
         }
 
-        $this->sendSuccessResponse('Callback received successfully');
-    }
+        if (isset($request['Body']['stkCallback'])) {
+            $callback = $request['Body']['stkCallback'];
 
-    private function isInvalidAmount($amount)
-    {
-        return !is_numeric($amount) || $amount <= 0;
-    }
+            $resultCode = $callback['ResultCode'];
+            $resultDesc = $callback['ResultDesc'];
 
-    private function isInvalidPhoneNumber($phoneNumber)
-    {
-        return !preg_match('/^\d{10,12}$/', $phoneNumber);
-    }
+            if ($resultCode == 0) {
+                // Transaction was successful
+                $items = $callback['CallbackMetadata']['Item'];
+                $mpesaReceiptNumber = $this->getCallbackItemValue($items, 'MpesaReceiptNumber');
+                $paymentId = $this->getCallbackItemValue($items, 'AccountReference');
 
-    private function isInvalidUserId($userId)
-    {
-        return !is_numeric($userId) || $userId <= 0;
-    }
+                // Log successful callback details
+                $logData = "Payment ID: $paymentId, Receipt Number: $mpesaReceiptNumber\n";
+                if (file_put_contents($logFilePath, $logData, FILE_APPEND) === false) {
+                    file_put_contents($errorLogFilePath, "Failed to write successful transaction to callback_logs.txt\n", FILE_APPEND);
+                    return $this->sendErrorResponse('Failed to write to log file');
+                }
 
-    private function sendSuccessResponse($message, $amount = null, $userId = null, $paymentMethod = null)
-    {
-        $responseContent = ['status' => 'success', 'message' => $message];
-        if ($amount !== null) {
-            $responseContent['amount'] = $amount;
+                // Update payment record
+                $payment = Payment::findFirstById($paymentId);
+
+                if ($payment) {
+                    $payment->mpesa_reference = $mpesaReceiptNumber;
+                    $payment->payment_status_id = 1;
+
+                    if ($payment->save()) {
+                        return $this->sendSuccessResponse('Payment successful', $payment->total_amount, $payment->user_id, 'mpesa');
+                    } else {
+                        // Log errors if save fails
+                        $messages = $payment->getMessages();
+                        foreach ($messages as $message) {
+                            file_put_contents($errorLogFilePath, $message->getMessage() . "\n", FILE_APPEND);
+                        }
+                        return $this->sendErrorResponse('Failed to update payment record: ' . implode(', ', $messages));
+                    }
+                } else {
+                    return $this->sendErrorResponse('Payment record not found');
+                }
+            } else {
+                return $this->sendErrorResponse('Payment failed: ' . $resultDesc);
+            }
+        } else {
+            file_put_contents($errorLogFilePath, "Invalid callback data\n", FILE_APPEND);
+            return $this->sendErrorResponse('Invalid callback data');
         }
-        if ($userId !== null) {
-            $responseContent['user_id'] = $userId;
+    }
+
+    private function getCallbackItemValue($items, $key)
+    {
+        foreach ($items as $item) {
+            if ($item['Name'] === $key) {
+                return $item['Value'];
+            }
         }
-        if ($paymentMethod !== null) {
-            $responseContent['payment_method'] = $paymentMethod;
-        }
-        return $this->response->setStatusCode(200)->setJsonContent($responseContent)->send();
+        return null;
     }
 
     private function sendErrorResponse($message)
     {
-        return $this->response->setStatusCode(400)->setJsonContent(['status' => 'error', 'message' => $message])->send();
+        return $this->response->setJsonContent([
+            'status' => 'error',
+            'message' => $message
+        ])->send();
+    }
+
+    private function sendSuccessResponse($message, $amount = null, $userId = null, $paymentMethod = null)
+    {
+        return $this->response->setJsonContent([
+            'status' => 'success',
+            'message' => $message,
+            'data' => [
+                'amount' => $amount,
+                'user_id' => $userId, 
+                'payment_method' => $paymentMethod
+            ]
+        ])->send();
+    }
+
+    private function isInvalidAmount($amount)
+    {
+        return !is_numeric($amount) || $amount <= 0;       
+    }
+
+    private function isInvalidPhoneNumber($phoneNumber)
+    {
+        return empty($phoneNumber) || !is_numeric($phoneNumber) || strlen($phoneNumber) != 12;
+    }
+
+    private function isInvalidUserId($userId)
+    {
+        return empty($userId) || !is_numeric($userId);
     }
 }
