@@ -58,15 +58,22 @@ class UserController extends Controller
                     return $this->response;
                 }
 
-                // Resend OTP
+                // Resend OTP to email
                 if (!$this->sendOtpEmail($existingUser->email, $otp)) {
                     $this->response->setStatusCode(500, 'Internal Server Error');
                     $this->response->setContent(json_encode(['error' => 'Failed to resend OTP email']));
                     return $this->response;
                 }
 
+                // Resend OTP to phone
+                if (!$this->sendOtpSms($existingUser->phone, $otp)) {
+                    $this->response->setStatusCode(500, 'Internal Server Error');
+                    $this->response->setContent(json_encode(['error' => 'Failed to resend OTP SMS']));
+                    return $this->response;
+                }
+
                 $this->response->setStatusCode(200, 'OK');
-                $this->response->setContent(json_encode(['message' => 'User exists. OTP resent to your email. Please verify your account!!']));
+                $this->response->setContent(json_encode(['message' => 'User exists. OTP resent to your email and phone. Please verify your account!!']));
                 return $this->response;
             } else {
                 // User exists and already verified
@@ -110,8 +117,15 @@ class UserController extends Controller
             return $this->response;
         }
 
+        // Send OTP to user's phone
+        if (!$this->sendOtpSms($user->phone, $otp)) {
+            $this->response->setStatusCode(500, 'Internal Server Error');
+            $this->response->setContent(json_encode(['error' => 'Failed to send OTP SMS']));
+            return $this->response;
+        }
+
         $this->response->setStatusCode(201, 'Created');
-        $this->response->setContent(json_encode(['message' => 'User created. OTP sent to your email.', 'user' => $user->toArray()]));
+        $this->response->setContent(json_encode(['message' => 'User created. OTP sent to your email and phone.', 'user' => $user->toArray()]));
 
         return $this->response;
     }
@@ -122,7 +136,7 @@ class UserController extends Controller
 
         try {
             // Server settings
-            $mail->SMTPDebug = 2; 
+            $mail->SMTPDebug = 2;
             $mail->isSMTP();
             $mail->Host       = 'smtp.gmail.com';
             $mail->SMTPAuth   = true;
@@ -148,6 +162,48 @@ class UserController extends Controller
             return false;
         }
     }
+
+    private function sendOtpSms($recipientPhone, $otp)
+    {
+        $apiKey = '72fb66391d11db232f83555ff1371e3d';
+        $shortCode = 'VasPro';
+        $message = "Your OTP code is $otp";
+        $callbackURL = '';
+
+        $curl = curl_init();
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => "https://api.vaspro.co.ke/v3/BulkSMS/api/create",
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => "",
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => "POST",
+            CURLOPT_POSTFIELDS => json_encode(array(
+                "apiKey" => $apiKey,
+                "shortCode" => $shortCode,
+                "message" => $message,
+                "recipient" => $recipientPhone,
+                "callbackURL" => $callbackURL,
+                "enqueue" => 0
+            )),
+            CURLOPT_HTTPHEADER => array(
+                "Content-Type: application/json",
+            ),
+        ));
+
+        $response = curl_exec($curl);
+        $err = curl_error($curl);
+        curl_close($curl);
+
+        if ($err) {
+            error_log("cURL Error #:" . $err);
+            return false;
+        } else {
+            return true;
+        }
+    }
+
 
     public function verifyOtpAction()
     {

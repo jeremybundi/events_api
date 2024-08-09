@@ -83,13 +83,20 @@ class LoginController extends Controller
                                   ->setJsonContent(['error' => 'Failed to send OTP email']);
         }
 
+        // Send OTP to user's phone
+        if (!$this->sendOtpSms($user->phone, $otp)) {
+            return $this->response->setStatusCode(500, 'Internal Server Error')
+                                  ->setContentType('application/json', 'UTF-8')
+                                  ->setJsonContent(['error' => 'Failed to send OTP SMS']);
+        }
+
         // Set session data after OTP is sent
         $_SESSION['username'] = $username;
         $_SESSION['otp_sent_time'] = time();
 
         return $this->response->setStatusCode(200, 'OK')
                               ->setContentType('application/json', 'UTF-8')
-                              ->setJsonContent(['message' => 'OTP sent to your email.']);
+                              ->setJsonContent(['message' => 'OTP sent to your email and phone.']);
     }
 
     private function sendOtpEmail($recipientEmail, $otp)
@@ -126,6 +133,47 @@ class LoginController extends Controller
         }
     }
 
+    private function sendOtpSms($recipientPhone, $otp)
+    {
+        $apiKey = '72fb66391d11db232f83555ff1371e3d'; // Replace with your API token
+        $shortCode = 'VasPro'; // Your SMS service short code
+        $message = 'Your OTP code is ' . $otp;
+        $callbackURL = ''; // Optional callback URL
+
+        $curl = curl_init();
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => "https://api.vaspro.co.ke/v3/BulkSMS/api/create",
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => "",
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => "POST",
+            CURLOPT_POSTFIELDS => json_encode(array(
+                "apiKey" => $apiKey,
+                "shortCode" => $shortCode,
+                "message" => $message,
+                "recipient" => $recipientPhone,
+                "callbackURL" => $callbackURL,
+                "enqueue" => 0
+            )),
+            CURLOPT_HTTPHEADER => array(
+                "content-type: application/json",
+            ),
+        ));
+        $response = curl_exec($curl);
+        $err = curl_error($curl);
+        curl_close($curl);
+
+        if ($err) {
+            error_log("cURL Error #:" . $err);
+            return false;
+        } else {
+            error_log("OTP SMS sent to {$recipientPhone}");
+            return true;
+        }
+    }
+
     public function verifyOtpAction()
     {
         $request = $this->request;
@@ -157,7 +205,7 @@ class LoginController extends Controller
 
         // Generate JWT token
         $issuedAt = time();
-        $expire = $issuedAt + 300;
+        $expire = $issuedAt + 3600;
         $payload = [
             'iss' => 'YOUR_APP_URL',
             'aud' => 'YOUR_APP_URL',
@@ -180,11 +228,6 @@ class LoginController extends Controller
 
         return $this->response->setStatusCode(200, 'OK')
                               ->setContentType('application/json', 'UTF-8')
-                              ->setJsonContent([
-                                  'token' => $jwt,
-                                  'role' => $user->getRoleName(),
-                                  'name' => $user->first_name,
-                                  'session_id' => session_id(), 
-                              ]);
+                              ->setJsonContent(['message' => 'Login successful', 'token' => $jwt]);
     }
 }

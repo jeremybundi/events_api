@@ -64,7 +64,7 @@ $router->addGet('/tickets/paid', [
     'controller' => 'TicketProfile',
     'action' => 'getPaidTickets'
 ]);
-//pay
+//pay mpesa
 $router->add(
     '/transaction/pay/{id}',
     [
@@ -77,4 +77,12 @@ $router->addPost('/transaction/callback', [
     'controller' => 'transaction',
     'action' => 'callback'
 ]);
+//barcode
+$router->add(
+    '/transaction/barcode/{id:[0-9]+}',
+    [
+        'controller' => 'transaction',
+        'action'     => 'pay',
+    ]
+);
 $router->handle($_SERVER['REQUEST_URI']);

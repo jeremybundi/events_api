@@ -38,16 +38,23 @@ class ForgotPasswordController extends Controller
         $user->otp_expires_at = time() + 300; 
         $user->save();
 
-        // Send OTP email
+        // Send OTP via email
         if (!$this->sendOtpEmail($user->email, $otp)) {
             return $this->response->setStatusCode(500, 'Internal Server Error')
                                   ->setContentType('application/json', 'UTF-8')
                                   ->setJsonContent(['error' => 'Failed to send OTP email']);
         }
 
+        // Send OTP via SMS
+        if (!$this->sendOtpSms($user->phone, $otp)) {
+            return $this->response->setStatusCode(500, 'Internal Server Error')
+                                  ->setContentType('application/json', 'UTF-8')
+                                  ->setJsonContent(['error' => 'Failed to send OTP SMS']);
+        }
+
         return $this->response->setStatusCode(200, 'OK')
                               ->setContentType('application/json', 'UTF-8')
-                              ->setJsonContent(['message' => 'OTP sent to your email']);
+                              ->setJsonContent(['message' => 'OTP sent to your email and phone']);
     }
 
     public function verifyOtpAndResetPasswordAction()
@@ -107,20 +114,18 @@ class ForgotPasswordController extends Controller
         $mail = new PHPMailer(true);
 
         try {
-            // Server settings
-            $mail->SMTPDebug = 2;
+            $mail->SMTPDebug = 2; 
             $mail->isSMTP();
             $mail->Host       = 'smtp.gmail.com';
             $mail->SMTPAuth   = true;
-            $mail->Username   = 'jeremybundi45@gmail.com'; 
-            $mail->Password   = 'mwpf auuq oolg pdwm'; 
+            $mail->Username   = 'jeremybundi45@gmail.com';
+            $mail->Password   = 'mwpfauuqoolgpdwm'; 
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->Port       = 587;
 
             // Recipients
             $mail->setFrom('jeremybundi45@gmail.com', 'Legacy');
             $mail->addAddress($recipientEmail);
-
             // Content
             $mail->isHTML(true);
             $mail->Subject = 'Your OTP Code';
@@ -132,6 +137,46 @@ class ForgotPasswordController extends Controller
         } catch (Exception $e) {
             error_log("Mailer Error: {$mail->ErrorInfo}");
             return false;
+        }
+    }
+
+    private function sendOtpSms($recipientPhone, $otp)
+    {
+        $apiKey = '72fb66391d11db232f83555ff1371e3d'; // Replace with your API token
+        $shortCode = 'VasPro'; // Your SMS service short code
+        $message = 'Your OTP code is ' . $otp;
+        $callbackURL = ''; // Optional callback URL
+
+        $curl = curl_init();
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => "https://api.vaspro.co.ke/v3/BulkSMS/api/create",
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => "",
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => "POST",
+            CURLOPT_POSTFIELDS => json_encode(array(
+                "apiKey" => $apiKey,
+                "shortCode" => $shortCode,
+                "message" => $message,
+                "recipient" => $recipientPhone,
+                "callbackURL" => $callbackURL,
+                "enqueue" => 0
+            )),
+            CURLOPT_HTTPHEADER => array(
+                "content-type: application/json",
+            ),
+        ));
+        $response = curl_exec($curl);
+        $err = curl_error($curl);
+        curl_close($curl);
+
+        if ($err) {
+            error_log("cURL Error #:" . $err);
+            return false;
+        } else {
+            return true;
         }
     }
 }
