@@ -1,9 +1,10 @@
 <?php
-
 use Phalcon\Mvc\Controller;
 use Phalcon\Http\Response;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
+use Endroid\QrCode\QrCode;
+use Endroid\QrCode\Writer\PngWriter;
 
 class TransactionController extends Controller
 {
@@ -181,16 +182,16 @@ class TransactionController extends Controller
 
         return $response['access_token'];
     }
-
+    
     public function callbackAction()
     {
         $request = $this->request->getJsonRawBody(true);
-
+    
         // Use absolute path for logs directory
         $logDir = __DIR__ . '/../logs';
         $logFilePath = $logDir . '/callback_logs.txt';
         $errorLogFilePath = $logDir . '/error_logs.txt';
-
+    
         // Ensure the directory exists and is writable
         if (!is_dir($logDir)) {
             mkdir($logDir, 0777, true);
@@ -198,41 +199,44 @@ class TransactionController extends Controller
         if (!is_writable($logDir)) {
             chmod($logDir, 0777);
         }
-
+    
         // Log the entire callback request for debugging purposes
         $logData = print_r($request, true);
         if (file_put_contents($logFilePath, $logData, FILE_APPEND) === false) {
             file_put_contents($errorLogFilePath, "Failed to write to callback_logs.txt\n", FILE_APPEND);
             return $this->sendErrorResponse('Failed to write to log file');
         }
-
+    
         if (isset($request['Body']['stkCallback'])) {
             $callback = $request['Body']['stkCallback'];
-
+    
             $resultCode = $callback['ResultCode'];
             $resultDesc = $callback['ResultDesc'];
-
+    
             if ($resultCode == 0) {
                 // Transaction was successful
                 $items = $callback['CallbackMetadata']['Item'];
                 $mpesaReceiptNumber = $this->getCallbackItemValue($items, 'MpesaReceiptNumber');
                 $paymentId = $this->getCallbackItemValue($items, 'AccountReference');
-
+    
                 // Log successful callback details
                 $logData = "Payment ID: $paymentId, Receipt Number: $mpesaReceiptNumber\n";
                 if (file_put_contents($logFilePath, $logData, FILE_APPEND) === false) {
                     file_put_contents($errorLogFilePath, "Failed to write successful transaction to callback_logs.txt\n", FILE_APPEND);
                     return $this->sendErrorResponse('Failed to write to log file');
                 }
-
+    
                 // Update payment record
                 $payment = Payment::findFirstById($paymentId);
-
+    
                 if ($payment) {
                     $payment->mpesa_reference = $mpesaReceiptNumber;
                     $payment->payment_status_id = 1;
-
+    
                     if ($payment->save()) {
+                        // Generate QR codes for each ticket
+                        $this->generateQrCodesForTickets($paymentId);
+    
                         return $this->sendSuccessResponse('Payment successful', $payment->total_amount, $payment->user_id, 'mpesa');
                     } else {
                         // Log errors if save fails
@@ -253,50 +257,120 @@ class TransactionController extends Controller
             return $this->sendErrorResponse('Invalid callback data');
         }
     }
+    
+    private function generateQrCodesForTickets($paymentId)
+    {
+        $tickets = TicketProfile::find([
+            'conditions' => 'payment_id = :paymentId:',
+            'bind' => ['paymentId' => $paymentId]
+        ]);
+    
+        if ($tickets) {
+            foreach ($tickets as $ticket) {
+                $uniqueCode = $ticket->unique_code; // Ensure this field is set for each ticket
+    
+                // Create a QR code instance with the unique code as data
+                $qrCode = new QrCode($uniqueCode);
+    
+                // Generate the QR code image and save it
+                $writer = new PngWriter();
+                $result = $writer->write($qrCode);
+    
+                // Define the path for the QR code image
+                $filePath = __DIR__ . '/../qrcodes/' . $uniqueCode . '.png';
+    
+                // Save QR code image to a file
+                $result->saveToFile($filePath);
+            }
+        }
+    }
+    
 
-    private function getCallbackItemValue($items, $key)
+private function generateUniqueCode()
+{
+    return strtoupper(bin2hex(random_bytes(4))); 
+}
+private function generateQrCodeBase64($uniqueCode)
+{
+    $qrCode = new QrCode($uniqueCode);
+    $writer = new PngWriter();
+    $result = $writer->write($qrCode);
+
+    // Get the image data as base64
+    $base64Image = base64_encode($result->getString());
+
+    return 'data:image/png;base64,' . $base64Image;
+}
+
+// Example of usage in a controller action
+public function getQrCodeAction($uniqueCode)
+{
+    $base64QrCode = $this->generateQrCodeBase64($uniqueCode);
+
+    return $this->response->setJsonContent([
+        'status' => 'success',
+        'qr_code' => $base64QrCode
+    ])->send();
+}
+
+
+    private function getCallbackItemValue($items, $name)
     {
         foreach ($items as $item) {
-            if ($item['Name'] === $key) {
+            if ($item['Name'] === $name) {
                 return $item['Value'];
             }
         }
         return null;
     }
 
+    private function generateUniqueBarcodeData($paymentId)
+    {
+        return 'TICKET-' . uniqid() . '-' . $paymentId;
+    }
+
     private function sendErrorResponse($message)
     {
-        return $this->response->setJsonContent([
-            'status' => 'error',
-            'message' => $message
-        ])->send();
+        return $this->response->setStatusCode(400, 'Bad Request')
+                              ->setJsonContent(['status' => 'error', 'message' => $message])
+                              ->send();
     }
 
     private function sendSuccessResponse($message, $amount = null, $userId = null, $paymentMethod = null)
     {
-        return $this->response->setJsonContent([
+        $response = [
             'status' => 'success',
-            'message' => $message,
-            'data' => [
-                'amount' => $amount,
-                'user_id' => $userId, 
-                'payment_method' => $paymentMethod
-            ]
-        ])->send();
+            'message' => $message
+        ];
+
+        if ($amount !== null) {
+            $response['amount'] = $amount;
+        }
+
+        if ($userId !== null) {
+            $response['user_id'] = $userId;
+        }
+
+        if ($paymentMethod !== null) {
+            $response['payment_method'] = $paymentMethod;
+        }
+
+        return $this->response->setJsonContent($response)
+                              ->send();
     }
 
     private function isInvalidAmount($amount)
     {
-        return !is_numeric($amount) || $amount <= 0;       
+        return !is_numeric($amount) || $amount <= 0;
     }
 
     private function isInvalidPhoneNumber($phoneNumber)
     {
-        return empty($phoneNumber) || !is_numeric($phoneNumber) || strlen($phoneNumber) != 12;
+        return !preg_match('/^\d{10,12}$/', $phoneNumber);
     }
 
     private function isInvalidUserId($userId)
     {
-        return empty($userId) || !is_numeric($userId);
+        return empty($userId);
     }
 }

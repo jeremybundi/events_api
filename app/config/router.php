@@ -85,4 +85,9 @@ $router->add(
         'action'     => 'pay',
     ]
 );*/
+$router->addGet('/ticket/qr-code/{uniqueCode}', [
+    'controller' => 'transaction',
+    'action'     => 'getQrCode'
+]);
+
 $router->handle($_SERVER['REQUEST_URI']);
