@@ -5,6 +5,7 @@ use Phalcon\Mvc\Model;
 class Event extends Model
 {
     public $id;
+    public $user_id;
     public $name;
     public $date;
     public $start_time;
@@ -27,5 +28,14 @@ class Event extends Model
         $this->hasMany('id', 'TicketCategory', 'event_id', [
             'alias' => 'ticketCategory'
         ]);
+          // Define relationship with the User model
+          $this->belongsTo(
+            'user_id',
+            Users::class,
+            'id',
+            [
+                'alias' => 'user',
+            ]
+        );
     }
 }

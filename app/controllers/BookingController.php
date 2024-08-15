@@ -1,4 +1,5 @@
 <?php
+
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Phalcon\Mvc\Controller;
@@ -12,7 +13,6 @@ class BookingController extends Controller
     {
         $this->view->disable();
     }
-
     public function createAction()
 {
     $response = new Response();
@@ -36,7 +36,7 @@ class BookingController extends Controller
                         ->setJsonContent(['status' => 'error', 'message' => 'Invalid token']);
     }
 
-    // Extract user_id from token
+    // Extract userId from token
     $userId = $decoded->data->userId;
 
     $data = $this->request->getJsonRawBody(true);
@@ -70,7 +70,7 @@ class BookingController extends Controller
 
     $totalAmount = 0;
     $bookingDetails = [];
-    $paymentId = null;  // Variable to store payment ID
+    $paymentId = null;  
 
     try {
         foreach ($data['booking'] as $bookingData) {
@@ -125,6 +125,13 @@ class BookingController extends Controller
                 throw new \Exception('Failed to update event ID: ' . $bookingData['event_id']);
             }
 
+            // Calculate and update purchased_tickets
+            $ticketCategory->purchased_tickets += $bookingData['quantity'];  // Updated line
+
+            if (!$ticketCategory->save()) {
+                throw new \Exception('Failed to update purchased tickets for ticket category ID: ' . $bookingData['ticket_category_id']);
+            }
+
             $bookingDetails[] = [
                 'event_id' => $bookingData['event_id'],
                 'ticket_category_id' => $bookingData['ticket_category_id'],
@@ -139,6 +146,7 @@ class BookingController extends Controller
                 $ticketProfile = new TicketProfile();
                 $ticketProfile->user_id = $userId;
                 $ticketProfile->booking_id = $booking->id;
+                $ticketProfile->category_id = $bookingData['ticket_category_id'];  // Set category_id
                 $ticketProfile->created_at = date('Y-m-d H:i:s');
                 $ticketProfile->updated_at = date('Y-m-d H:i:s');
 

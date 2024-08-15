@@ -4,13 +4,14 @@ use Phalcon\Mvc\Model;
 
 class TicketCategory extends Model
 {
-    public $id;
+    public $category_id;
     public $event_id;
     public $category_name;
     public $price;
     public $quantity_available;
     public $created_at;
     public $updated_at;
+    public $validated_tickets;
 
     public function initialize()
     {

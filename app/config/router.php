@@ -77,17 +77,37 @@ $router->addPost('/transaction/callback', [
     'controller' => 'transaction',
     'action' => 'callback'
 ]);
-/*barcode
-$router->add(
-    '/transaction/barcode/{id:[0-9]+}',
-    [
-        'controller' => 'transaction',
-        'action'     => 'pay',
-    ]
-);*/
+//get qr code
 $router->addGet('/ticket/qr-code/{uniqueCode}', [
     'controller' => 'transaction',
     'action'     => 'getQrCode'
 ]);
+// updating user roles these two below
+$router->addGet('/roles/getRoleByUserId/{userId}', [
+    'controller' => 'roles',
+    'action' => 'getRoleByUserId',
+]);
+
+// Route to update the role of a user by user ID
+$router->addPost('/roles/updateRoleByUserId/{userId}', [
+    'controller' => 'roles',
+    'action' => 'updateRoleByUserId',
+]);
+// Route to update ticket status
+$router->addPost(
+    '/update/ticket/status/{id:[0-9]+}',
+    [
+        'controller' => 'validTickets',
+        'action'     => 'validate',
+    ]
+);
+//event access
+$router->addPost(
+    '/event/access/add',
+    [
+        'controller' => 'userEventAccess',
+        'action'     => 'addUserEventAccess'
+    ]
+);
 
 $router->handle($_SERVER['REQUEST_URI']);

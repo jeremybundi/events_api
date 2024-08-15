@@ -140,10 +140,10 @@ class LoginController extends Controller
 
     private function sendOtpSms($recipientPhone, $otp)
     {
-        $apiKey = '72fb66391d11db232f83555ff1371e3d'; // Replace with your API token
-        $shortCode = 'VasPro'; // Your SMS service short code
+        $apiKey = '72fb66391d11db232f83555ff1371e3d';
+        $shortCode = 'VasPro'; 
         $message = 'Your OTP code is ' . $otp;
-        $callbackURL = ''; // Optional callback URL
+        $callbackURL = ''; 
 
         $curl = curl_init();
         curl_setopt_array($curl, array(

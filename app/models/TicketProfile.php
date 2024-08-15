@@ -13,6 +13,8 @@ class TicketProfile extends Model
     public $unique_code;
     public $updated_at;
     public $payment_status;
+    public $valid_status;
+    public $category_id;
 
     public function initialize()
     {

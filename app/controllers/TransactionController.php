@@ -5,6 +5,8 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\Writer\PngWriter;
+use Stripe\Stripe;
+use Stripe\PaymentIntent;
 
 class TransactionController extends Controller
 {
@@ -52,7 +54,7 @@ class TransactionController extends Controller
 
     public function payAction($id)
     {
-        $this->requireAuth();
+        $userIdFromToken = $this->requireAuth(); 
 
         $payment = Payment::findFirstById($id);
 
@@ -60,10 +62,14 @@ class TransactionController extends Controller
             return $this->sendErrorResponse('Payment not found');
         }
 
-        $paymentId = $payment->id; 
+        $paymentId = $payment->id;
         $paymentMethod = $payment->payment_method;
         $amount = $payment->total_amount;
         $userId = $payment->user_id;
+
+        if ($userId !== $userIdFromToken) {
+            return $this->sendErrorResponse('User ID does not match');
+        }
 
         if (is_null($amount)) {
             return $this->sendErrorResponse('Total amount not found or is null');
@@ -72,19 +78,21 @@ class TransactionController extends Controller
         $data = $this->request->getJsonRawBody();
         $phoneNumber = isset($data->phoneNumber) ? $data->phoneNumber : null;
 
-        if (!$phoneNumber) {
-            return $this->sendErrorResponse('Phone number is required');
+        if (!$phoneNumber && $paymentMethod === 'mpesa') {
+            return $this->sendErrorResponse('Phone number is required for M-Pesa payments');
         }
 
         switch ($paymentMethod) {
             case 'mpesa':
                 return $this->processMpesaPayment($amount, $phoneNumber, $paymentMethod, $paymentId, $userId);
             case 'card':
-                return $this->processCardPayment($amount, $userId, $paymentMethod);
+                return $this->processCardPayment($amount, $userId, $paymentId);
             default:
                 return $this->sendErrorResponse('Invalid payment method');
         }
     }
+
+
 
     private function processMpesaPayment($amount, $phoneNumber, $paymentMethod, $paymentId, $userId)
     {
@@ -105,16 +113,50 @@ class TransactionController extends Controller
         }
     }
 
-    private function processCardPayment($amount, $userId, $paymentMethod)
+
+    private function processCardPayment($amount, $userId, $paymentId)
     {
-        // Validate amount and userId
-        if ($this->isInvalidAmount($amount) || $this->isInvalidUserId($userId)) {
-            return $this->sendErrorResponse('Invalid amount or user ID');
+        Stripe::setApiKey('sk_test_51Pnb6e2M2vjqZ42FoYr5mkHXwEHSidrGswECBPjoN9Huwibsxj4LdOL2eHtkG8FsBM5rtjVJC6u4tJPbuSckZp5v00azcdTacX');
+    
+        try {
+            // Create a PaymentIntent with amount, currency, and metadata
+            $paymentIntent = PaymentIntent::create([
+                'amount' => $amount * 100, 
+                'currency' => 'usd',
+                'payment_method_types' => ['card'],
+                'metadata' => [
+                    'user_id' => $userId,
+                    'payment_id' => $paymentId,
+                ],
+            ]);
+    
+            // Update payment record
+            $payment = Payment::findFirstById($paymentId);
+    
+            if ($payment) {
+                $payment->payment_status_id = 1; 
+    
+                if ($payment->save()) {
+                    // Generate QR codes for each ticket
+                    $this->generateQrCodesForTickets($paymentId);
+    
+                    return $this->sendSuccessResponse(
+                        'Payment intent created and payment successful',
+                        $paymentIntent->id, 
+                        null,
+                        'card'
+                    );
+                } else {
+                    return $this->sendErrorResponse('Failed to update payment record');
+                }
+            } else {
+                return $this->sendErrorResponse('Payment record not found');
+            }
+        } catch (\Exception $e) {
+            return $this->sendErrorResponse('Payment failed: ' . $e->getMessage());
         }
-
-        return $this->sendSuccessResponse('Card payment processed', $amount, $userId, $paymentMethod);
     }
-
+    
     private function initiateMpesaStkPush($amount, $phoneNumber, $callbackUrl, $paymentId)
     {
         $accessToken = $this->generateMpesaAccessToken(self::MPESA_CONSUMER_KEY, self::MPESA_CONSUMER_SECRET);
@@ -200,7 +242,7 @@ class TransactionController extends Controller
             chmod($logDir, 0777);
         }
     
-        // Log the entire callback request for debugging purposes
+        /////////// Log the entire callback request for debugging purposes*///
         $logData = print_r($request, true);
         if (file_put_contents($logFilePath, $logData, FILE_APPEND) === false) {
             file_put_contents($errorLogFilePath, "Failed to write to callback_logs.txt\n", FILE_APPEND);
@@ -257,34 +299,42 @@ class TransactionController extends Controller
             return $this->sendErrorResponse('Invalid callback data');
         }
     }
-    
+
     private function generateQrCodesForTickets($paymentId)
-    {
-        $tickets = TicketProfile::find([
-            'conditions' => 'payment_id = :paymentId:',
-            'bind' => ['paymentId' => $paymentId]
-        ]);
-    
-        if ($tickets) {
-            foreach ($tickets as $ticket) {
-                $uniqueCode = $ticket->unique_code; // Ensure this field is set for each ticket
-    
-                // Create a QR code instance with the unique code as data
-                $qrCode = new QrCode($uniqueCode);
-    
-                // Generate the QR code image and save it
-                $writer = new PngWriter();
-                $result = $writer->write($qrCode);
-    
-                // Define the path for the QR code image
-                $filePath = __DIR__ . '/../qrcodes/' . $uniqueCode . '.png';
-    
-                // Save QR code image to a file
-                $result->saveToFile($filePath);
+{
+    $tickets = TicketProfile::find([
+        'conditions' => 'payment_id = :paymentId:',
+        'bind' => ['paymentId' => $paymentId]
+    ]);
+
+    if ($tickets) {
+        foreach ($tickets as $ticket) {
+            $uniqueCode = $this->generateUniqueCode(); 
+
+            $qrCode = new QrCode($uniqueCode);
+
+            $writer = new PngWriter();
+            $result = $writer->write($qrCode);
+
+            $filePath = __DIR__ . '/../qrcodes/' . $uniqueCode . '.png';
+
+            $result->saveToFile($filePath);
+
+            // Update ticket profile with QR code and unique code
+            $ticket->qr_code = $filePath; 
+            $ticket->unique_code = $uniqueCode;
+
+            if (!$ticket->save()) {
+                // Log errors if save fails
+                $messages = $ticket->getMessages();
+                foreach ($messages as $message) {
+                    file_put_contents(__DIR__ . '/../logs/error_logs.txt', $message->getMessage() . "\n", FILE_APPEND);
+                }
             }
         }
     }
-    
+}
+
 
 private function generateUniqueCode()
 {
@@ -296,22 +346,21 @@ private function generateQrCodeBase64($uniqueCode)
     $writer = new PngWriter();
     $result = $writer->write($qrCode);
 
-    // Get the image data as base64
+
     $base64Image = base64_encode($result->getString());
 
     return 'data:image/png;base64,' . $base64Image;
 }
 
-// Example of usage in a controller action
-public function getQrCodeAction($uniqueCode)
-{
-    $base64QrCode = $this->generateQrCodeBase64($uniqueCode);
+    public function getQrCodeAction($uniqueCode)
+    {
+        $base64QrCode = $this->generateQrCodeBase64($uniqueCode);
 
-    return $this->response->setJsonContent([
-        'status' => 'success',
-        'qr_code' => $base64QrCode
-    ])->send();
-}
+        return $this->response->setJsonContent([
+            'status' => 'success',
+            'qr_code' => $base64QrCode
+        ])->send();
+    }
 
 
     private function getCallbackItemValue($items, $name)
@@ -369,8 +418,8 @@ public function getQrCodeAction($uniqueCode)
         return !preg_match('/^\d{10,12}$/', $phoneNumber);
     }
 
-    private function isInvalidUserId($userId)
+    /*private function isInvalidUserId($userId)
     {
         return empty($userId);
-    }
+    }*/
 }

@@ -91,17 +91,17 @@ class TicketProfileController extends Controller
     public function getPaidTicketsAction()
     {
         $response = new Response();
-
+    
         try {
             $userId = $this->getUserIdFromToken();
-
+    
             // Check if user exists
             $user = Users::findFirstById($userId);
             if (!$user) {
                 return $response->setStatusCode(404, 'Not Found')
                                 ->setJsonContent(['status' => 'error', 'message' => 'User not found']);
             }
-
+    
             // Create the query builder instance
             $queryBuilder = $this->modelsManager->createBuilder()
                 ->columns([
@@ -109,7 +109,8 @@ class TicketProfileController extends Controller
                     'CONCAT(u.first_name, " ", u.second_name) AS user_name',
                     'tc.category_name',
                     'e.name AS event_name',
-                    'p.payment_status_id'
+                    'p.payment_status_id',
+                    'tp.unique_code'
                 ])
                 ->from(['tp' => 'TicketProfile'])
                 ->join('Users', 'tp.user_id = u.id', 'u') 
@@ -119,25 +120,28 @@ class TicketProfileController extends Controller
                 ->join('Payment', 'b.id = p.booking_id', 'p')
                 ->where('tp.user_id = :user_id:', ['user_id' => $userId])
                 ->andWhere('p.payment_status_id = 1');
-
+    
             $tickets = $queryBuilder->getQuery()->execute();
-
+    
             $result = [];
             foreach ($tickets as $ticket) {
+                $qrCodeUrl = $this->url->get('ticket-profile/get-qr-code/' . $ticket->unique_code);
                 $result[] = [
                     'ticket_id' => $ticket->ticket_id,
                     'user_name' => $ticket->user_name,
                     'category_name' => $ticket->category_name,
-                    'event_name' => $ticket->event_name
+                    'event_name' => $ticket->event_name,
+                    'qr_code_url' => $qrCodeUrl, 
+                    'unique_code' => $ticket->unique_code 
                 ];
             }
-
+    
             return $response->setStatusCode(200, 'OK')
                             ->setJsonContent([
                                 'status' => 'success',
                                 'tickets' => $result
                             ]);
-
+    
         } catch (\Exception $e) {
             return $response->setStatusCode(500, 'Internal Server Error')
                             ->setJsonContent([
@@ -146,4 +150,5 @@ class TicketProfileController extends Controller
                             ]);
         }
     }
+    
 }

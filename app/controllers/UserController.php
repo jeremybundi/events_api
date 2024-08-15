@@ -169,7 +169,7 @@ class UserController extends Controller
         $shortCode = 'VasPro';
         $message = "Your OTP code is $otp";
         $callbackURL = '';
-
+    
         $curl = curl_init();
         curl_setopt_array($curl, array(
             CURLOPT_URL => "https://api.vaspro.co.ke/v3/BulkSMS/api/create",
@@ -191,20 +191,21 @@ class UserController extends Controller
                 "Content-Type: application/json",
             ),
         ));
-
+    
         $response = curl_exec($curl);
+        $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
         $err = curl_error($curl);
         curl_close($curl);
-
+    
         if ($err) {
             error_log("cURL Error #:" . $err);
             return false;
         } else {
-            return true;
+            error_log("HTTP Status Code: " . $httpCode);
+            error_log("API Response: " . $response);
+            return ($httpCode == 200);
         }
     }
-
-
     public function verifyOtpAction()
     {
         $request = $this->request;
