@@ -119,7 +119,7 @@ class TransactionController extends Controller
         Stripe::setApiKey('sk_test_51Pnb6e2M2vjqZ42FoYr5mkHXwEHSidrGswECBPjoN9Huwibsxj4LdOL2eHtkG8FsBM5rtjVJC6u4tJPbuSckZp5v00azcdTacX');
     
         try {
-            // Create a PaymentIntent with amount, currency, and metadata
+            // Create a PaymentIntent 
             $paymentIntent = PaymentIntent::create([
                 'amount' => $amount * 100, 
                 'currency' => 'usd',
@@ -229,7 +229,7 @@ class TransactionController extends Controller
     {
         $request = $this->request->getJsonRawBody(true);
     
-        // Use absolute path for logs directory
+        // Log directory paths
         $logDir = __DIR__ . '/../logs';
         $logFilePath = $logDir . '/callback_logs.txt';
         $errorLogFilePath = $logDir . '/error_logs.txt';
@@ -242,63 +242,101 @@ class TransactionController extends Controller
             chmod($logDir, 0777);
         }
     
-        /////////// Log the entire callback request for debugging purposes*///
+        // Log the entire callback request
         $logData = print_r($request, true);
         if (file_put_contents($logFilePath, $logData, FILE_APPEND) === false) {
             file_put_contents($errorLogFilePath, "Failed to write to callback_logs.txt\n", FILE_APPEND);
             return $this->sendErrorResponse('Failed to write to log file');
         }
     
+        // Check for M-Pesa callback
         if (isset($request['Body']['stkCallback'])) {
-            $callback = $request['Body']['stkCallback'];
+            return $this->handleMpesaCallback($request['Body']['stkCallback'], $logFilePath, $errorLogFilePath);
+        }
     
-            $resultCode = $callback['ResultCode'];
-            $resultDesc = $callback['ResultDesc'];
+        // Check for Card payment callback (this is usually a webhook in Stripe)
+        if (isset($request['type']) && $request['type'] === 'payment_intent.succeeded') {
+            return $this->handleCardPaymentCallback($request, $logFilePath, $errorLogFilePath);
+        }
     
-            if ($resultCode == 0) {
-                // Transaction was successful
-                $items = $callback['CallbackMetadata']['Item'];
-                $mpesaReceiptNumber = $this->getCallbackItemValue($items, 'MpesaReceiptNumber');
-                $paymentId = $this->getCallbackItemValue($items, 'AccountReference');
+        file_put_contents($errorLogFilePath, "Invalid callback data\n", FILE_APPEND);
+        return $this->sendErrorResponse('Invalid callback data');
+    }
     
-                // Log successful callback details
-                $logData = "Payment ID: $paymentId, Receipt Number: $mpesaReceiptNumber\n";
-                if (file_put_contents($logFilePath, $logData, FILE_APPEND) === false) {
-                    file_put_contents($errorLogFilePath, "Failed to write successful transaction to callback_logs.txt\n", FILE_APPEND);
-                    return $this->sendErrorResponse('Failed to write to log file');
-                }
+    private function handleMpesaCallback($callback, $logFilePath, $errorLogFilePath)
+    {
+        $resultCode = $callback['ResultCode'];
+        $resultDesc = $callback['ResultDesc'];
     
-                // Update payment record
-                $payment = Payment::findFirstById($paymentId);
+        if ($resultCode == 0) {
+            $items = $callback['CallbackMetadata']['Item'];
+            $mpesaReceiptNumber = $this->getCallbackItemValue($items, 'MpesaReceiptNumber');
+            $paymentId = $this->getCallbackItemValue($items, 'AccountReference');
     
-                if ($payment) {
-                    $payment->mpesa_reference = $mpesaReceiptNumber;
-                    $payment->payment_status_id = 1;
+            $logData = "M-Pesa Payment ID: $paymentId, Receipt Number: $mpesaReceiptNumber\n";
+            if (file_put_contents($logFilePath, $logData, FILE_APPEND) === false) {
+                file_put_contents($errorLogFilePath, "Failed to write successful transaction to callback_logs.txt\n", FILE_APPEND);
+                return $this->sendErrorResponse('Failed to write to log file');
+            }
     
-                    if ($payment->save()) {
-                        // Generate QR codes for each ticket
-                        $this->generateQrCodesForTickets($paymentId);
+            $payment = Payment::findFirstById($paymentId);
     
-                        return $this->sendSuccessResponse('Payment successful', $payment->total_amount, $payment->user_id, 'mpesa');
-                    } else {
-                        // Log errors if save fails
-                        $messages = $payment->getMessages();
-                        foreach ($messages as $message) {
-                            file_put_contents($errorLogFilePath, $message->getMessage() . "\n", FILE_APPEND);
-                        }
-                        return $this->sendErrorResponse('Failed to update payment record: ' . implode(', ', $messages));
-                    }
+            if ($payment) {
+                $payment->mpesa_reference = $mpesaReceiptNumber;
+                $payment->payment_status_id = 1;
+    
+                if ($payment->save()) {
+                    $this->generateQrCodesForTickets($paymentId);
+                    return $this->sendSuccessResponse('Payment successful', $payment->total_amount, $payment->user_id, 'mpesa');
                 } else {
-                    return $this->sendErrorResponse('Payment record not found');
+                    $messages = $payment->getMessages();
+                    foreach ($messages as $message) {
+                        file_put_contents($errorLogFilePath, $message->getMessage() . "\n", FILE_APPEND);
+                    }
+                    return $this->sendErrorResponse('Failed to update payment record: ' . implode(', ', $messages));
                 }
             } else {
-                return $this->sendErrorResponse('Payment failed: ' . $resultDesc);
+                return $this->sendErrorResponse('Payment record not found');
             }
         } else {
-            file_put_contents($errorLogFilePath, "Invalid callback data\n", FILE_APPEND);
-            return $this->sendErrorResponse('Invalid callback data');
+            return $this->sendErrorResponse('Payment failed: ' . $resultDesc);
         }
     }
+    
+    private function handleCardPaymentCallback($request, $logFilePath, $errorLogFilePath)
+    {
+        // Extract payment intent ID
+        $paymentIntentId = $request['data']['object']['id'];
+        $paymentId = $request['data']['object']['metadata']['payment_id'];
+    
+        // Log the card payment callback
+        $logData = "Card Payment Intent ID: $paymentIntentId, Payment ID: $paymentId\n";
+        if (file_put_contents($logFilePath, $logData, FILE_APPEND) === false) {
+            file_put_contents($errorLogFilePath, "Failed to write successful transaction to callback_logs.txt\n", FILE_APPEND);
+            return $this->sendErrorResponse('Failed to write to log file');
+        }
+    
+        // Update payment record
+        $payment = Payment::findFirstById($paymentId);
+        if ($payment) {
+            $payment->payment_status_id = 1;
+    
+            if ($payment->save()) {
+                // Generate QR codes for each ticket
+                $this->generateQrCodesForTickets($paymentId);
+                return $this->sendSuccessResponse('Card payment successful', $payment->total_amount, $payment->user_id, 'card');
+            } else {
+                $messages = $payment->getMessages();
+                foreach ($messages as $message) {
+                    file_put_contents($errorLogFilePath, $message->getMessage() . "\n", FILE_APPEND);
+                }
+                return $this->sendErrorResponse('Failed to update payment record: ' . implode(', ', $messages));
+            }
+        } else {
+            return $this->sendErrorResponse('Payment record not found');
+        }
+    }
+    
 
     private function generateQrCodesForTickets($paymentId)
 {

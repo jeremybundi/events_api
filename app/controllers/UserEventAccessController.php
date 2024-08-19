@@ -30,7 +30,7 @@ class UserEventAccessController extends Controller
             $decoded = JWT::decode($jwt, new \Firebase\JWT\Key($secretKey, 'HS256'));
             
             $role = $decoded->data->role;
-            $UserId = $decoded->data->userId; // Use UserId from token
+            $UserId = $decoded->data->userId; 
 
             if (!in_array($role, $allowedRoles)) {
                 throw new \Exception('User role not allowed');
@@ -38,7 +38,7 @@ class UserEventAccessController extends Controller
 
             // Return the decoded data, including UserId and role
             return [
-                'UserId' => $UserId, // Use UserId from token
+                'UserId' => $UserId, 
                 'role' => $role,
             ];
         } catch (\Exception $e) {
@@ -52,9 +52,9 @@ class UserEventAccessController extends Controller
         $response = new Response();
 
         try {
-            $userDetails = $this->validateRole(['System Admin', 'Event Organizers']);
+            $userDetails = $this->validateRole(['System Admin', 'Super Admin', 'Event Organizers']);
             $role = $userDetails['role'];
-            $UserId = $userDetails['UserId']; // Use UserId from token
+            $UserId = $userDetails['UserId']; 
 
             $data = $this->request->getJsonRawBody(true);
             if (!isset($data['user_id']) || !isset($data['event_id'])) {

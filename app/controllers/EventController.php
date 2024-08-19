@@ -3,6 +3,7 @@
 use Phalcon\Mvc\Controller;
 use Phalcon\Http\Response;
 use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 
 class EventController extends Controller
 {
@@ -18,7 +19,7 @@ class EventController extends Controller
             throw new \Exception('Authorization header not found or format invalid');
         }
 
-        $jwt = substr($authHeader, 7); 
+        $jwt = substr($authHeader, 7); // Remove 'Bearer ' prefix
         if (!$jwt) {
             throw new \Exception('Invalid authorization token format');
         }
@@ -27,18 +28,17 @@ class EventController extends Controller
         $secretKey = $config->jwt->secret_key;
 
         try {
-            $decoded = JWT::decode($jwt, new \Firebase\JWT\Key($secretKey, 'HS256'));
+            $decoded = JWT::decode($jwt, new Key($secretKey, 'HS256'));
             
             $role = $decoded->data->role;
-            $UserId = $decoded->data->userId; // Use UserId from token
+            $UserId = $decoded->data->userId;
 
             if (!in_array($role, $allowedRoles)) {
                 throw new \Exception('User role not allowed');
             }
 
-            // Return the decoded data, including UserId and role
             return [
-                'UserId' => $UserId, 
+                'UserId' => $UserId,
                 'role' => $role,
             ];
         } catch (\Exception $e) {
@@ -52,8 +52,8 @@ class EventController extends Controller
         $response = new Response();
     
         try {
-            $userDetails = $this->validateRole(['System Admin', 'Event Organizers']);
-            $UserId = $userDetails['UserId']; // Use UserId from token
+            $userDetails = $this->validateRole(['Super Admin', 'System Admin', 'Event Organizers']);
+            $UserId = $userDetails['UserId']; 
     
             $data = $this->request->getJsonRawBody(true);
             if (!isset($data['event']) || !isset($data['ticket_categories'])) {
@@ -85,7 +85,7 @@ class EventController extends Controller
             $event->venue = $eventData['venue'];
             $event->description = $eventData['description'];
             $event->total_tickets = $eventData['total_tickets'];
-            $event->UserId = $UserId; // Set the UserId column
+            $event->UserId = $UserId; 
     
             if (!$event->save()) {
                 throw new \Exception('Failed to save event: ' . implode(', ', $event->getMessages()));
@@ -119,6 +119,7 @@ class EventController extends Controller
             ]);
         }
     }
+
     public function editAction($id)
     {
         $response = new Response();
@@ -223,17 +224,16 @@ class EventController extends Controller
             ]);
         }
     }
-    
+
     public function listAction()
     {
         $response = new Response();
 
         try {
-            $userDetails = $this->validateRole(['System Admin', 'Event Organizers', 'Customer', 'Validator']);
+            $userDetails = $this->validateRole(['Super Admin', 'System Admin', 'Event Organizers', 'Customer', 'Validator']);
             $role = $userDetails['role'];
             $UserId = $userDetails['UserId'];
 
-        
             $eventsData = [];
 
             // Retrieve events created by the user (if they are an Event Organizer)
@@ -250,53 +250,28 @@ class EventController extends Controller
                 }
             }
 
-            // Retrieve events the user has access to through UserEventAccess
-            if (in_array($role, ['Event Organizers', 'Customer', 'Validator'])) {
-                $accessibleEvents = $this->modelsManager->createBuilder()
-                    ->from('Event')
-                    ->innerJoin('UserEventAccess', 'uea.event_id = Event.id', 'uea')
-                    ->where('uea.user_id = :UserId:', ['UserId' => $UserId])
-                    ->getQuery()
-                    ->execute();
-
-                foreach ($accessibleEvents as $event) {
-                    if (!isset($eventsData[$event->id])) {
-                        $eventsData[$event->id] = $this->getEventData($event);
-                    }
-                }
-            }
-
-            // Retrieve all events if the user is a System Admin
-            if ($role === 'System Admin') {
+            // Retrieve all events if user is Super Admin or System Admin
+            if (in_array($role, ['Super Admin', 'System Admin'])) {
                 $allEvents = Event::find();
+
                 foreach ($allEvents as $event) {
                     $eventsData[$event->id] = $this->getEventData($event);
                 }
             }
 
-            // Check if any events are found
-            if (empty($eventsData)) {
-                return $response->setJsonContent([
-                    'status' => 'error',
-                    'message' => 'No events found'
-                ]);
-            }
-
             return $response->setJsonContent([
                 'status' => 'success',
-                'data' => array_values($eventsData)
+                'data' => $eventsData
             ]);
 
         } catch (\Exception $e) {
-            return $response->setStatusCode(401, 'Unauthorized')
-                            ->setJsonContent([
-                                'status' => 'error',
-                                'message' => $e->getMessage()
-                            ]);
+            return $response->setJsonContent([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ]);
         }
     }
 
-    // metthod to get categories
     private function getEventData($event)
     {
         $ticketCategories = TicketCategory::find([
@@ -309,7 +284,6 @@ class EventController extends Controller
         $ticketCategoriesData = [];
         foreach ($ticketCategories as $ticketCategory) {
             $ticketCategoriesData[] = [
-                'id' => $ticketCategory->category_id,
                 'category_name' => $ticketCategory->category_name,
                 'price' => $ticketCategory->price,
                 'quantity_available' => $ticketCategory->quantity_available
@@ -317,19 +291,15 @@ class EventController extends Controller
         }
 
         return [
-            'event' => [
-                'id' => $event->id,
-                'name' => $event->name,
-                'date' => $event->date,
-                'start_time' => $event->start_time,
-                'end_time' => $event->end_time,
-                'venue' => $event->venue,
-                'description' => $event->description,
-                'total_tickets' => $event->total_tickets,
-                'image_url' => $event->image_url
-            ],
+            'id' => $event->id,
+            'name' => $event->name,
+            'date' => $event->date,
+            'start_time' => $event->start_time,
+            'end_time' => $event->end_time,
+            'venue' => $event->venue,
+            'description' => $event->description,
+            'total_tickets' => $event->total_tickets,
             'ticket_categories' => $ticketCategoriesData
         ];
     }
-
 }

@@ -126,7 +126,7 @@ class BookingController extends Controller
             }
 
             // Calculate and update purchased_tickets
-            $ticketCategory->purchased_tickets += $bookingData['quantity'];  // Updated line
+            $ticketCategory->purchased_tickets += $bookingData['quantity'];  
 
             if (!$ticketCategory->save()) {
                 throw new \Exception('Failed to update purchased tickets for ticket category ID: ' . $bookingData['ticket_category_id']);
@@ -146,7 +146,7 @@ class BookingController extends Controller
                 $ticketProfile = new TicketProfile();
                 $ticketProfile->user_id = $userId;
                 $ticketProfile->booking_id = $booking->id;
-                $ticketProfile->category_id = $bookingData['ticket_category_id'];  // Set category_id
+                $ticketProfile->category_id = $bookingData['ticket_category_id'];  
                 $ticketProfile->created_at = date('Y-m-d H:i:s');
                 $ticketProfile->updated_at = date('Y-m-d H:i:s');
 
@@ -164,7 +164,7 @@ class BookingController extends Controller
             throw new \Exception($paymentResult['message']);
         }
 
-        $paymentId = $paymentResult['payment_id'];  // Retrieve payment ID
+        $paymentId = $paymentResult['payment_id'];  
 
         // Update ticket profiles with payment ID
         foreach ($data['booking'] as $bookingData) {

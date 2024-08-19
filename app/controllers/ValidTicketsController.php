@@ -36,7 +36,7 @@ class ValidTicketsController extends Controller
         $response = new Response();
 
         // Check user role
-        if (!$this->checkRole(['Validator', 'Event Organizers', 'System Admin'])) {
+        if (!$this->checkRole(['Validator', 'Event Organizers', 'System Admin', 'Super Admin'])) {
             return $response->setStatusCode(403, 'Forbidden')
                             ->setJsonContent(['status' => 'error', 'message' => 'Access denied']);
         }
