@@ -41,7 +41,7 @@ class BookingController extends Controller
 
     $data = $this->request->getJsonRawBody(true);
 
-    // Input validation
+    // Input validation check
     $validation = new Validation();
     $validation->add('booking', new PresenceOf(['message' => 'The booking field is required']));
     $validation->add('payment_method', new PresenceOf(['message' => 'The payment_method field is required']));
@@ -60,7 +60,7 @@ class BookingController extends Controller
         return $response->setJsonContent(['status' => 'error', 'message' => 'Invalid input data']);
     }
 
-    // Check if the user exists
+    // Check if the user exists in the database
     $user = Users::findFirst($userId);
     if (!$user) {
         return $response->setJsonContent(['status' => 'error', 'message' => 'User not found for user ID: ' . $userId]);
@@ -100,7 +100,7 @@ class BookingController extends Controller
             $subtotal = $ticketCategory->price * $bookingData['quantity'];
             $totalAmount += $subtotal;
 
-            // Create a new Booking
+            // Create a new Booking record 
             $booking = new Booking();
             $booking->user_id = $userId;
             $booking->event_id = $bookingData['event_id'];

@@ -19,7 +19,7 @@ class EventController extends Controller
             throw new \Exception('Authorization header not found or format invalid');
         }
 
-        $jwt = substr($authHeader, 7); // Remove 'Bearer ' prefix
+        $jwt = substr($authHeader, 7);      
         if (!$jwt) {
             throw new \Exception('Invalid authorization token format');
         }

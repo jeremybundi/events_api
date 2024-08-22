@@ -11,6 +11,7 @@ class TicketCategory extends Model
     public $quantity_available;
     public $created_at;
     public $updated_at;
+    public $purchased_tickets;
     public $validated_tickets;
 
     public function initialize()

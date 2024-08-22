@@ -6,7 +6,6 @@ use Firebase\JWT\Key;
 
 class RolesController extends Controller
 {
-    // Get JWT secret from configuration
     private function getJwtSecret()
     {
         $config = $this->getDI()->getConfig();
@@ -19,7 +18,6 @@ class RolesController extends Controller
         return $secret;
     }
 
-    // Decode the JWT token and get the role and user ID
     private function getRoleAndUserIdFromToken()
     {
         $token = $this->request->getHeader('Authorization');
@@ -107,7 +105,7 @@ class RolesController extends Controller
             return $response;
         }
 
-        // Ensure the user cannot update their own role
+       // Ensure the user cannot update their own role
         if ($userId == $currentUserId) {
             $response = new Response();
             $response->setJsonContent([
@@ -210,7 +208,6 @@ class RolesController extends Controller
         return $response;
     }
 
-    // Helper method to get a user's role name by user ID
     private function getRoleByUserId($userId)
     {
         $user = Users::findFirstById($userId);

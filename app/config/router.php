@@ -109,5 +109,31 @@ $router->addPost(
         'action'     => 'addUserEventAccess'
     ]
 );
+// Route for event statistics
+$router->addGet(
+    '/analysis/event/statistics',
+    [
+        'controller' => 'analysis',
+        'action'     => 'eventStatistics',
+    ]
+);
+
+// Route for payment summary
+$router->addGet(
+    '/analysis/payment/summary',
+    [
+        'controller' => 'analysis',
+        'action'     => 'payment',
+    ]
+);
+
+// Route for getting tickets by duration
+$router->addGet(
+    '/analysis/get/tickets/byDuration',
+    [
+        'controller' => 'analysis',
+        'action'     => 'getByDuration',
+    ]
+);
 
 $router->handle($_SERVER['REQUEST_URI']);
