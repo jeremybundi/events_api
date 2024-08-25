@@ -184,30 +184,30 @@ class LoginController extends Controller
         $request = $this->request;
         $jsonData = $request->getRawBody();
         $data = json_decode($jsonData, true);
-
+    
         if (!$data) {
             return $this->response->setStatusCode(400, 'Bad Request')
                                   ->setContentType('application/json', 'UTF-8')
                                   ->setJsonContent(['error' => 'Invalid JSON data provided']);
         }
-
+    
         $username = $data['username'] ?? null;
         $otp = $data['otp'] ?? null;
-
+    
         if (!$username || !$otp) {
             return $this->response->setStatusCode(400, 'Bad Request')
                                   ->setContentType('application/json', 'UTF-8')
                                   ->setJsonContent(['error' => 'Username and OTP are required']);
         }
-
+    
         $user = Users::findFirstByUsername($username);
-
+    
         if (!$user || $user->otp !== $otp || time() > $user->otp_expires_at) {
             return $this->response->setStatusCode(401, 'Unauthorized')
                                   ->setContentType('application/json', 'UTF-8')
                                   ->setJsonContent(['error' => 'Invalid or expired OTP']);
         }
-
+    
         // Generate JWT token
         $issuedAt = time();
         $expire = $issuedAt + 36000;
@@ -219,20 +219,28 @@ class LoginController extends Controller
             'data' => [
                 'userId' => $user->id,
                 'role' => $user->getRoleName(),
+                'first_name' => $user->first_name, // Include first_name in the payload
             ],
         ];
-
+    
         $config = $this->di->getConfig();
         $secretKey = $config->jwt->secret_key;
         $jwt = JWT::encode($payload, $secretKey, 'HS256');
-
+    
         // Set session data after successful login
         $_SESSION['user_id'] = $user->id;
         $_SESSION['role'] = $user->getRoleName();
+        $_SESSION['first_name'] = $user->first_name;
         $_SESSION['token'] = $jwt;
-
+    
         return $this->response->setStatusCode(200, 'OK')
                               ->setContentType('application/json', 'UTF-8')
-                              ->setJsonContent(['message' => 'Login successful', 'token' => $jwt]);
+                              ->setJsonContent([
+                                  'message' => 'Login successful',
+                                  'token' => $jwt,
+                                  'role' => $user->getRoleName(), // Include role in the response
+                                  'first_name' => $user->first_name, // Include first_name in the response
+                              ]);
     }
+    
 }

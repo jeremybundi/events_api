@@ -43,11 +43,24 @@ $router->addPut('/event/edit/{id}', [
     'controller' => 'event',
     'action' => 'edit'
 ]);
-//get events
+//get events with auth
 $router->addGet('/event/get', [
     'controller' => 'event',
     'action' => 'list'
 ]);
+//get events publicly
+$router->addGet('/event/get/public', [
+    'controller' => 'event',
+    'action' => 'publiclist'
+]);
+//get events by id
+$router->add(
+    '/event/get/{id:[0-9]+}',
+    [
+        'controller' => 'event',
+        'action'     => 'getEventById',
+    ]
+);
 //book
 $router->addPost('/booking/create', [
     'controller' => 'booking',
@@ -135,5 +148,14 @@ $router->addGet(
         'action'     => 'getByDuration',
     ]
 );
+//get events by given date
+$router->addGet(
+    '/analysis/get/tickets/byDate',
+    [
+        'controller' => 'analysis',
+        'action'     => 'getTicketsByDate',
+    ]
+);
+
 
 $router->handle($_SERVER['REQUEST_URI']);

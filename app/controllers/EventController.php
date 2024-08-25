@@ -48,215 +48,310 @@ class EventController extends Controller
     }
 
     public function addAction()
-    {
-        $response = new Response();
-    
-        try {
-            $userDetails = $this->validateRole(['Super Admin', 'System Admin', 'Event Organizers']);
-            $UserId = $userDetails['UserId']; 
-    
-            $data = $this->request->getJsonRawBody(true);
-            if (!isset($data['event']) || !isset($data['ticket_categories'])) {
-                return $response->setJsonContent([
-                    'status' => 'error',
-                    'message' => 'Invalid input data'
-                ]);
-            }
-    
-            $eventData = $data['event'];
-            $ticketCategoriesData = $data['ticket_categories'];
-    
-            $totalCategoryTickets = array_sum(array_column($ticketCategoriesData, 'quantity_available'));
-    
-            if ($totalCategoryTickets != $eventData['total_tickets']) {
-                return $response->setJsonContent([
-                    'status' => 'error',
-                    'message' => 'Total quantity of ticket categories must equal total tickets for the event'
-                ]);
-            }
-    
-            $this->db->begin();
-    
-            $event = new Event();
-            $event->name = $eventData['name'];
-            $event->date = $eventData['date'];
-            $event->start_time = $eventData['start_time'];
-            $event->end_time = $eventData['end_time'];
-            $event->venue = $eventData['venue'];
-            $event->description = $eventData['description'];
-            $event->total_tickets = $eventData['total_tickets'];
-            $event->UserId = $UserId; 
-    
-            if (!$event->save()) {
-                throw new \Exception('Failed to save event: ' . implode(', ', $event->getMessages()));
-            }
-    
-            foreach ($ticketCategoriesData as $ticketCategoryData) {
-                $ticketCategory = new TicketCategory();
-                $ticketCategory->event_id = $event->id;
-                $ticketCategory->category_name = $ticketCategoryData['category_name'];
-                $ticketCategory->price = $ticketCategoryData['price'];
-                $ticketCategory->quantity_available = $ticketCategoryData['quantity_available'];
-    
-                if (!$ticketCategory->save()) {
-                    throw new \Exception('Failed to save ticket category: ' . implode(', ', $ticketCategory->getMessages()));
-                }
-            }
-    
-            $this->db->commit();
-    
-            return $response->setJsonContent([
-                'status' => 'success',
-                'message' => 'Event and ticket categories created successfully'
-            ]);
-    
-        } catch (\Exception $e) {
-            $this->db->rollback();
-    
+{
+    $response = new Response();
+
+    try {
+        $userDetails = $this->validateRole(['Super Admin', 'System Admin', 'Event Organizers']);
+        $UserId = $userDetails['UserId']; 
+
+        $data = $this->request->getJsonRawBody(true);
+        if (!isset($data['event']) || !isset($data['ticket_categories'])) {
             return $response->setJsonContent([
                 'status' => 'error',
-                'message' => $e->getMessage()
+                'message' => 'Invalid input data'
             ]);
         }
-    }
 
+        $eventData = $data['event'];
+        $ticketCategoriesData = $data['ticket_categories'];
+
+        $totalCategoryTickets = array_sum(array_column($ticketCategoriesData, 'quantity_available'));
+
+        if ($totalCategoryTickets != $eventData['total_tickets']) {
+            return $response->setJsonContent([
+                'status' => 'error',
+                'message' => 'Total quantity of ticket categories must equal total tickets for the event'
+            ]);
+        }
+
+        // Start transaction
+        $this->db->begin();
+
+        // Create and save event
+        $event = new Event();
+        $event->name = $eventData['name'];
+        $event->date = $eventData['date'];
+        $event->start_time = $eventData['start_time'];
+        $event->end_time = $eventData['end_time'];
+        $event->venue = $eventData['venue'];
+        $event->description = $eventData['description'];
+        $event->total_tickets = $eventData['total_tickets'];
+        $event->UserId = $UserId; 
+
+        if (!$event->save()) {
+            throw new \Exception('Failed to save event: ' . implode(', ', $event->getMessages()));
+        }
+
+        // Create and save ticket categories
+        foreach ($ticketCategoriesData as $ticketCategoryData) {
+            $ticketCategory = new TicketCategory();
+            $ticketCategory->event_id = $event->id;
+            $ticketCategory->category_name = $ticketCategoryData['category_name'];
+            $ticketCategory->price = $ticketCategoryData['price'];
+            $ticketCategory->quantity_available = $ticketCategoryData['quantity_available'];
+
+            if (!$ticketCategory->save()) {
+                throw new \Exception('Failed to save ticket category: ' . implode(', ', $ticketCategory->getMessages()));
+            }
+        }
+
+        // Commit transaction
+        $this->db->commit();
+
+        return $response->setJsonContent([
+            'status' => 'success',
+            'message' => 'Event and ticket categories created successfully'
+        ]);
+
+    } catch (\Exception $e) {
+        // Rollback transaction if any exception occurs
+        if ($this->db->isUnderTransaction()) {
+            $this->db->rollback();
+        }
+
+        return $response->setJsonContent([
+            'status' => 'error',
+            'message' => $e->getMessage()
+        ]);
+    }
+}
+    //edit events
     public function editAction($id)
-    {
-        $response = new Response();
-    
-        try {
-            // Validate the role and retrieve UserId and role from the token
-            $userDetails = $this->validateRole(['System Admin', 'Event Organizers']);
-            $UserId = $userDetails['UserId']; 
-            $role = $userDetails['role'];
-    
-            // Fetch the event by ID
-            $event = Event::findFirst($id);
-            if (!$event) {
-                throw new \Exception('Event not found');
+{
+    $response = new Response();
+
+    try {
+        // Validate user role
+        $userDetails = $this->validateRole(['Super Admin', 'System Admin', 'Event Organizers']);
+        $UserId = $userDetails['UserId'];
+        $role = $userDetails['role'];
+
+        // Get JSON data from the request
+        $data = $this->request->getJsonRawBody(true);
+
+        // Check if event and ticket categories are provided
+        if (!isset($data['event']) || !isset($data['ticket_categories'])) {
+            return $response->setJsonContent([
+                'status' => 'error',
+                'message' => 'Missing event or ticket categories data.'
+            ]);
+        }
+
+        $eventData = $data['event'];
+        $ticketCategoriesData = $data['ticket_categories'];
+
+        // Validate event data
+        $requiredEventFields = ['name', 'date', 'start_time', 'end_time', 'venue', 'description', 'total_tickets'];
+        $missingEventFields = array_diff($requiredEventFields, array_keys($eventData));
+
+        if (!empty($missingEventFields)) {
+            return $response->setJsonContent([
+                'status' => 'error',
+                'message' => 'Missing event fields: ' . implode(', ', $missingEventFields)
+            ]);
+        }
+
+        // Validate ticket categories
+        if (empty($ticketCategoriesData)) {
+            return $response->setJsonContent([
+                'status' => 'error',
+                'message' => 'Ticket categories cannot be empty.'
+            ]);
+        }
+
+        $missingCategoryFields = [];
+        foreach ($ticketCategoriesData as $index => $category) {
+            $requiredCategoryFields = ['category_name', 'price', 'quantity_available'];
+            $missingFields = array_diff($requiredCategoryFields, array_keys($category));
+            if (!empty($missingFields)) {
+                $missingCategoryFields[$index] = $missingFields;
             }
-    
-            // Check if the user is an event organizer and owns the event
-            if ($role === 'Event Organizers' && $event->UserId !== $UserId) {
-                return $response->setStatusCode(403, 'Forbidden')
-                                ->setJsonContent([
-                                    'status' => 'error',
-                                    'message' => 'You are not allowed to edit this event'
-                                ]);
+        }
+
+        if (!empty($missingCategoryFields)) {
+            $errors = [];
+            foreach ($missingCategoryFields as $index => $fields) {
+                $errors[] = "Missing fields in ticket category at index $index: " . implode(', ', $fields);
             }
-    
-            // Get the raw JSON data from the request
-            $data = $this->request->getJsonRawBody(true);
-            if (!isset($data['event']) || !isset($data['ticket_categories'])) {
-                return $response->setJsonContent([
-                    'status' => 'error',
-                    'message' => 'Invalid input data'
-                ]);
-            }
-    
-            $eventData = $data['event'];
-            $ticketCategoriesData = $data['ticket_categories'];
-    
-            // Validate the total number of tickets
-            $totalCategoryTickets = array_sum(array_column($ticketCategoriesData, 'quantity_available'));
-            if ($totalCategoryTickets != $eventData['total_tickets']) {
-                return $response->setJsonContent([
-                    'status' => 'error',
-                    'message' => 'Total quantity of ticket categories must equal total tickets for the event'
-                ]);
-            }
-    
-            $this->db->begin();
-    
-            // Update the event details
-            $event->name = $eventData['name'];
-            $event->date = $eventData['date'];
-            $event->start_time = $eventData['start_time'];
-            $event->end_time = $eventData['end_time'];
-            $event->venue = $eventData['venue'];
-            $event->description = $eventData['description'];
-            $event->total_tickets = $eventData['total_tickets'];
-    
-            if (!$event->save()) {
-                throw new \Exception('Failed to update event: ' . implode(', ', $event->getMessages()));
-            }
-    
-            // Delete existing ticket categories
-            $existingTicketCategories = TicketCategory::find([
-                'conditions' => 'event_id = ?1',
+            return $response->setJsonContent([
+                'status' => 'error',
+                'message' => implode('; ', $errors)
+            ]);
+        }
+
+        // Check total quantity of ticket categories
+        $totalCategoryTickets = array_sum(array_column($ticketCategoriesData, 'quantity_available'));
+        if ($totalCategoryTickets != $eventData['total_tickets']) {
+            return $response->setJsonContent([
+                'status' => 'error',
+                'message' => 'Total quantity of ticket categories must equal total tickets for the event'
+            ]);
+        }
+
+        // Find and update event
+        $event = Event::findFirst($id);
+        if (!$event) {
+            return $response->setJsonContent([
+                'status' => 'error',
+                'message' => 'Event not found'
+            ]);
+        }
+
+        // Check if the user has permission to edit the event
+        if ($role === 'Event Organizers' && $event->UserId != $UserId) {
+            return $response->setJsonContent([
+                'status' => 'error',
+                'message' => 'You do not have permission to edit this event'
+            ]);
+        }
+
+        $event->name = $eventData['name'];
+        $event->date = $eventData['date'];
+        $event->start_time = $eventData['start_time'];
+        $event->end_time = $eventData['end_time'];
+        $event->venue = $eventData['venue'];
+        $event->description = $eventData['description'];
+        $event->total_tickets = $eventData['total_tickets'];
+
+        if (!$event->save()) {
+            throw new \Exception('Failed to update event: ' . implode(', ', $event->getMessages()));
+        }
+
+        // Update or create ticket categories
+        foreach ($ticketCategoriesData as $ticketCategoryData) {
+            $ticketCategory = TicketCategory::findFirst([
+                'conditions' => 'event_id = ?1 AND category_name = ?2',
                 'bind'       => [
-                    1 => $event->id
+                    1 => $event->id,
+                    2 => $ticketCategoryData['category_name']
                 ]
             ]);
-    
-            foreach ($existingTicketCategories as $existingTicketCategory) {
-                if (!$existingTicketCategory->delete()) {
-                    throw new \Exception('Failed to delete existing ticket categories');
-                }
-            }
-    
-            // Save the new ticket categories
-            foreach ($ticketCategoriesData as $ticketCategoryData) {
+
+            if (!$ticketCategory) {
                 $ticketCategory = new TicketCategory();
                 $ticketCategory->event_id = $event->id;
-                $ticketCategory->category_name = $ticketCategoryData['category_name'];
-                $ticketCategory->price = $ticketCategoryData['price'];
-                $ticketCategory->quantity_available = $ticketCategoryData['quantity_available'];
-    
-                if (!$ticketCategory->save()) {
-                    throw new \Exception('Failed to save ticket category: ' . implode(', ', $ticketCategory->getMessages()));
+            }
+
+            $ticketCategory->category_name = $ticketCategoryData['category_name'];
+            $ticketCategory->price = $ticketCategoryData['price'];
+            $ticketCategory->quantity_available = $ticketCategoryData['quantity_available'];
+
+            if (!$ticketCategory->save()) {
+                throw new \Exception('Failed to save ticket category: ' . implode(', ', $ticketCategory->getMessages()));
+            }
+        }
+
+        return $response->setJsonContent([
+            'status' => 'success',
+            'message' => 'Event and ticket categories updated successfully'
+        ]);
+
+    } catch (\Exception $e) {
+        return $response->setJsonContent([
+            'status' => 'error',
+            'message' => $e->getMessage()
+        ]);
+    }
+}
+
+   public function listAction()
+{
+    $response = new Response();
+
+    try {
+        // Validate user role and get UserId
+        $userDetails = $this->validateRole(['Super Admin', 'System Admin', 'Event Organizers']);
+        $role = $userDetails['role'];
+        $UserId = $userDetails['UserId'];
+
+        $eventsData = [];
+
+        if ($role === 'Event Organizers') {
+            // Retrieve events created by the user if they are an Event Organizer
+            $createdEvents = Event::find([
+                'conditions' => 'UserId = ?1',
+                'bind'       => [
+                    1 => $UserId
+                ]
+            ]);
+
+            foreach ($createdEvents as $event) {
+                $eventData = $this->getEventData($event);
+                $eventData['date'] = (new \DateTime($event->date))->format('Y-m-d');
+                $eventsData[$event->id] = $eventData;
+            }
+        }
+
+        // If the user is an Event Organizer, filter events they have access to
+        if ($role === 'Event Organizers') {
+            $accessibleEvents = UserEventAccess::find([
+                'conditions' => 'user_id = ?1',
+                'bind'       => [
+                    1 => $UserId
+                ]
+            ]);
+
+            foreach ($accessibleEvents as $access) {
+                $eventId = $access->event_id;
+                $event = Event::findFirst($eventId);
+
+                if ($event) {
+                    $eventData = $this->getEventData($event);
+                    $eventData['date'] = (new \DateTime($event->date))->format('Y-m-d');
+                    $eventsData[$event->id] = $eventData;
                 }
             }
-    
-            $this->db->commit();
-    
-            return $response->setJsonContent([
-                'status' => 'success',
-                'message' => 'Event and ticket categories updated successfully'
-            ]);
-    
-        } catch (\Exception $e) {
-            $this->db->rollback();
-    
-            return $response->setJsonContent([
-                'status' => 'error',
-                'message' => $e->getMessage()
-            ]);
         }
-    }
 
-    public function listAction()
+        // Retrieve all events if user is Super Admin or System Admin
+        if (in_array($role, ['Super Admin', 'System Admin'])) {
+            $allEvents = Event::find();
+
+            foreach ($allEvents as $event) {
+                $eventData = $this->getEventData($event);
+                $eventData['date'] = (new \DateTime($event->date))->format('Y-m-d');
+                $eventsData[$event->id] = $eventData;
+            }
+        }
+
+        return $response->setJsonContent([
+            'status' => 'success',
+            'data' => $eventsData
+        ]);
+
+    } catch (\Exception $e) {
+        return $response->setJsonContent([
+            'status' => 'error',
+            'message' => $e->getMessage()
+        ]);
+    }
+}
+
+
+
+    public function publicListAction()
     {
         $response = new Response();
 
         try {
-            $userDetails = $this->validateRole(['Super Admin', 'System Admin', 'Event Organizers', 'Customer', 'Validator']);
-            $role = $userDetails['role'];
-            $UserId = $userDetails['UserId'];
-
             $eventsData = [];
 
-            // Retrieve events created by the user (if they are an Event Organizer)
-            if ($role === 'Event Organizers') {
-                $createdEvents = Event::find([
-                    'conditions' => 'UserId = ?1',
-                    'bind'       => [
-                        1 => $UserId
-                    ]
-                ]);
+            // Retrieve all events
+            $allEvents = Event::find();
 
-                foreach ($createdEvents as $event) {
-                    $eventsData[$event->id] = $this->getEventData($event);
-                }
-            }
-
-            // Retrieve all events if user is Super Admin or System Admin
-            if (in_array($role, ['Super Admin', 'System Admin'])) {
-                $allEvents = Event::find();
-
-                foreach ($allEvents as $event) {
-                    $eventsData[$event->id] = $this->getEventData($event);
-                }
+            foreach ($allEvents as $event) {
+                $eventsData[$event->id] = $this->getEventData($event);
             }
 
             return $response->setJsonContent([
@@ -271,6 +366,38 @@ class EventController extends Controller
             ]);
         }
     }
+    public function getEventByIdAction($id)
+    {
+        // Fetch event details from the database by ID
+        $event = Event::findFirst($id);
+    
+        if ($event) {
+            $response = new Response();
+            
+            // Format the date to exclude time
+            $eventDate = (new \DateTime($event->date))->format('Y-m-d');
+    
+            // Update the event data with the formatted date
+            $eventData = $this->getEventData($event); // Use the helper method to get event data with ticket categories
+            $eventData['date'] = $eventDate; // Replace date with formatted date
+    
+            $response->setJsonContent([
+                'status' => 'success',
+                'data' => $eventData
+            ]);
+            return $response;
+        } else {
+            $response = new Response();
+            $response->setStatusCode(404, 'Not Found');
+            $response->setJsonContent([
+                'status' => 'error',
+                'message' => 'Event not found'
+            ]);
+            return $response;
+        }
+    }
+    
+
 
     private function getEventData($event)
     {
@@ -284,6 +411,7 @@ class EventController extends Controller
         $ticketCategoriesData = [];
         foreach ($ticketCategories as $ticketCategory) {
             $ticketCategoriesData[] = [
+                'ticket_category_id'=> $ticketCategory->category_id,
                 'category_name' => $ticketCategory->category_name,
                 'price' => $ticketCategory->price,
                 'quantity_available' => $ticketCategory->quantity_available
@@ -297,6 +425,7 @@ class EventController extends Controller
             'start_time' => $event->start_time,
             'end_time' => $event->end_time,
             'venue' => $event->venue,
+            'image_url' => $event->image_url,
             'description' => $event->description,
             'total_tickets' => $event->total_tickets,
             'ticket_categories' => $ticketCategoriesData

@@ -139,7 +139,7 @@ class AnalysisController extends Controller
                 'total_paid_amount' => $totalPaidAmount,
                 'total_pending_amount' => $totalPendingAmount,
                 'successful_payments' => $successfulPayments,
-                'failed_payments' => $failedPayments,
+                'pending_payments' => $failedPayments,
                 'total_mpesa_amount' => $totalMpesaAmount,
                 'total_card_amount' => $totalCardAmount,
             ];
@@ -234,10 +234,90 @@ class AnalysisController extends Controller
         ]);
     }
 }
+public function getTicketsByDateAction()
+{
+    $response = new Response();
+
+    try {
+        $userDetails = $this->validateRole(['Super Admin', 'System Admin', 'Event Organizers']);
+        $role = $userDetails['role'];
+        $UserId = $userDetails['UserId'];
+
+        // Get the date from the query parameter
+        $date = $this->request->getQuery('date', 'string');
+
+        if (!$date) {
+            throw new \Exception('The date parameter is required');
+        }
+
+        // Convert the date to the start and end of the day
+        $startDate = date('Y-m-d 00:00:00', strtotime($date));
+        $endDate = date('Y-m-d 23:59:59', strtotime($date));
+
+        // Initialize the conditions and bind parameters for the query
+        $conditions = 'tp.created_at BETWEEN :start: AND :end:';
+        $bindParams = [
+            'start' => $startDate,
+            'end'   => $endDate,
+        ];
+
+        // Additional filtering if the user is an Event Organizer
+        if ($role === 'Event Organizers') {
+            $conditions .= ' AND tp.UserId = :userId:';
+            $bindParams['userId'] = $UserId;
+        }
+
+        // Use a query builder to join the TicketProfile and TicketCategory tables
+        $tickets = $this->modelsManager->createBuilder()
+            ->from(['tp' => 'TicketProfile'])
+            ->join('TicketCategory', 'tp.category_id = tc.category_id', 'tc')
+            ->where($conditions, $bindParams)
+            ->columns([
+                'tp.id as ticket_id',
+                'tc.event_id as event_id',
+                'tc.price as price',
+                'tp.created_at as created_at',
+            ])
+            ->getQuery()
+            ->execute();
+
+        // Summarize the data
+        $summary = [
+            'total_tickets_booked' => count($tickets),
+            'total_revenue' => array_sum(array_column($tickets->toArray(), 'price')),
+            'tickets' => []
+        ];
+
+        foreach ($tickets as $ticket) {
+            $summary['tickets'][] = [
+                'ticket_id' => $ticket->ticket_id,
+                'event_id' => $ticket->event_id,
+                'price' => $ticket->price,
+                'created_at' => $ticket->created_at,
+            ];
+        }
+
+        return $response->setJsonContent([
+            'status' => 'success',
+            'data' => $summary
+        ]);
+
+    } catch (\Exception $e) {
+        return $response->setJsonContent([
+            'status' => 'error',
+            'message' => $e->getMessage()
+        ]);
+    }
+}
 private function getEventStatistics($event)
 {
     $totalTicketsSold = 0;
     $totalRevenue = 0;
+    $pendingPayments = 0;
+    $amountPaid = 0;
+    $totalTicketsAvailable = 0;
+
+    $categoryDetails = [];
 
     // Fetch all ticket categories for the event
     $ticketCategories = TicketCategory::find([
@@ -247,23 +327,60 @@ private function getEventStatistics($event)
         ]
     ]);
 
-    // Calculate total tickets sold and total revenue for the event
+    // Calculate total tickets sold, total revenue, total tickets available, and details for each category
     foreach ($ticketCategories as $ticketCategory) {
         $ticketsSold = $ticketCategory->purchased_tickets;
+        $ticketsAvailable = $ticketCategory->quantity_available; 
         $revenue = $ticketsSold * $ticketCategory->price;
 
         $totalTicketsSold += $ticketsSold;
         $totalRevenue += $revenue;
+        $totalTicketsAvailable += $ticketsAvailable;
+
+        // Calculate remaining tickets for this category
+        $remainingTickets = $ticketsAvailable - $ticketsSold;
+
+        // Store category details
+        $categoryDetails[] = [
+            'category name' => $ticketCategory->category_name, 
+            'tickets_available' => $ticketsAvailable,
+            'tickets_sold' => $ticketsSold,
+            'remaining_tickets' => $remainingTickets,
+            'price' => $ticketCategory->price
+        ];
     }
+
+    // Fetch all payments for the event
+    $payments = Payment::find([
+        'conditions' => 'booking_id IN (SELECT Booking.id FROM Booking WHERE event_id = ?1)',
+        'bind'       => [
+            1 => $event->id
+        ]
+    ]);
+
+    // Calculate amount paid and pending payments
+    foreach ($payments as $payment) {
+        if ($payment->payment_status_id == 1) {
+            $amountPaid += $payment->total_amount;
+        } elseif ($payment->payment_status_id == 0) {
+            $pendingPayments += $payment->total_amount;
+        }
+    }
+
+    // Calculate remaining tickets for the event
+    $remainingTickets = $totalTicketsAvailable - $totalTicketsSold;
 
     // Return event statistics
     return [
         'event_name' => $event->name,
         'total_tickets_sold' => $totalTicketsSold,
         'total_revenue' => $totalRevenue,
+        'amount_paid' => $amountPaid,
+        'pending_payments' => $pendingPayments,
+        'remaining_tickets' => $remainingTickets,
+        'categories' => $categoryDetails, 
         'date' => $event->date,
     ];
 }
-
 
 }

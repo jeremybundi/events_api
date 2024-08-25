@@ -117,12 +117,12 @@ class UserController extends Controller
             return $this->response;
         }
 
-        // Send OTP to user's phone
+        /*// Send OTP to user's phone
         if (!$this->sendOtpSms($user->phone, $otp)) {
             $this->response->setStatusCode(500, 'Internal Server Error');
             $this->response->setContent(json_encode(['error' => 'Failed to send OTP SMS']));
             return $this->response;
-        }
+        } */
 
         $this->response->setStatusCode(201, 'Created');
         $this->response->setContent(json_encode(['message' => 'User created. OTP sent to your email and phone.', 'user' => $user->toArray()]));
@@ -163,7 +163,7 @@ class UserController extends Controller
         }
     }
 
-    private function sendOtpSms($recipientPhone, $otp)
+    /*private function sendOtpSms($recipientPhone, $otp)
     {
         $apiKey = '72fb66391d11db232f83555ff1371e3d';
         $shortCode = 'VasPro';
@@ -205,7 +205,7 @@ class UserController extends Controller
             error_log("API Response: " . $response);
             return ($httpCode == 200);
         }
-    }
+    }*/
     public function verifyOtpAction()
     {
         $request = $this->request;

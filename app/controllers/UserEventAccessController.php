@@ -48,92 +48,91 @@ class UserEventAccessController extends Controller
     }
 
     public function addUserEventAccessAction()
-    {
-        $response = new Response();
+{
+    $response = new Response();
 
-        try {
-            $userDetails = $this->validateRole(['System Admin', 'Super Admin', 'Event Organizers']);
-            $role = $userDetails['role'];
-            $UserId = $userDetails['UserId']; 
+    try {
+        $userDetails = $this->validateRole(['System Admin', 'Super Admin', 'Event Organizers']);
+        $role = $userDetails['role'];
+        $UserId = $userDetails['UserId'];
 
-            $data = $this->request->getJsonRawBody(true);
-            if (!isset($data['user_id']) || !isset($data['event_id'])) {
-                return $response->setJsonContent([
-                    'status' => 'error',
-                    'message' => 'Invalid input data'
-                ]);
-            }
-
-            $userId = $data['user_id'];
-            $eventId = $data['event_id'];
-
-            // Check if user exists
-            $user = Users::findFirst($userId);
-            if (!$user) {
-                return $response->setJsonContent([
-                    'status' => 'error',
-                    'message' => 'User not found'
-                ]);
-            }
-
-            // Check if event exists
-            $event = Event::findFirst($eventId);
-            if (!$event) {
-                return $response->setJsonContent([
-                    'status' => 'error',
-                    'message' => 'Event not found'
-                ]);
-            }
-
-            // Check if user is allowed to add access
-            if ($role === 'Event Organizers') {
-                // Check if the event was created by the Event Organizer
-                if ($event->UserId != $UserId) {
-                    return $response->setJsonContent([
-                        'status' => 'error',
-                        'message' => 'Event does not belong to this organizer'
-                    ]);
-                }
-            }
-
-            // Check if access record already exists
-            $existingAccess = UserEventAccess::findFirst([
-                'conditions' => 'user_id = ?1 AND event_id = ?2',
-                'bind'       => [
-                    1 => $userId,
-                    2 => $eventId
-                ]
-            ]);
-            if ($existingAccess) {
-                return $response->setJsonContent([
-                    'status' => 'error',
-                    'message' => 'User already has access to this event'
-                ]);
-            }
-
-            // Add access record
-            $access = new UserEventAccess();
-            $access->user_id = $userId;
-            $access->event_id = $eventId;
-
-            if (!$access->save()) {
-                return $response->setJsonContent([
-                    'status' => 'error',
-                    'message' => 'Failed to add access: ' . implode(', ', $access->getMessages())
-                ]);
-            }
-
+        $data = $this->request->getJsonRawBody(true);
+        if (!isset($data['user_id']) || !isset($data['event_id'])) {
             return $response->setJsonContent([
-                'status' => 'success',
-                'message' => 'User access to event added successfully'
+                'status' => 'error',
+                'message' => 'Invalid input data'
             ]);
-
-        } catch (\Exception $e) {
-            return $response->setStatusCode(401, 'Unauthorized')
-                            ->setJsonContent([
-                                'status' => 'error',
-                                'message' => $e->getMessage()
-                            ]);
         }
+
+        $userId = $data['user_id'];
+        $eventId = $data['event_id'];
+
+        // Check if user exists
+        $user = Users::findFirst($userId);
+        if (!$user) {
+            return $response->setJsonContent([
+                'status' => 'error',
+                'message' => 'User not found'
+            ]);
+        }
+
+        // Check if event exists
+        $event = Event::findFirst($eventId);
+        if (!$event) {
+            return $response->setJsonContent([
+                'status' => 'error',
+                'message' => 'Event not found'
+            ]);
+        }
+
+        // Check if user is allowed to add access
+        if ($role === 'Event Organizers') {
+            // Check if the event was created by the Event Organizer
+            if ($event->UserId != $UserId) {
+                return $response->setJsonContent([
+                    'status' => 'error',
+                    'message' => 'Event does not belong to this organizer'
+                ]);
+            }
+        }
+
+        // Check if access record already exists
+        $existingAccess = UserEventAccess::findFirst([
+            'conditions' => 'user_id = ?1 AND event_id = ?2',
+            'bind'       => [
+                1 => $userId,
+                2 => $eventId
+            ]
+        ]);
+        if ($existingAccess) {
+            return $response->setJsonContent([
+                'status' => 'error',
+                'message' => 'User already has access to this event'
+            ]);
+        }
+
+        // Add access record
+        $access = new UserEventAccess();
+        $access->user_id = $userId;
+        $access->event_id = $eventId;
+
+        if (!$access->save()) {
+            return $response->setJsonContent([
+                'status' => 'error',
+                'message' => 'Failed to add access: ' . implode(', ', $access->getMessages())
+            ]);
+        }
+
+        return $response->setJsonContent([
+            'status' => 'success',
+            'message' => 'User access to event added successfully'
+        ]);
+
+    } catch (\Exception $e) {
+        return $response->setJsonContent([
+            'status' => 'error',
+            'message' => $e->getMessage()
+        ]);
     }
+}
 }
