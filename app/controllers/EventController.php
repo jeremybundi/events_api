@@ -87,6 +87,7 @@ class EventController extends Controller
         $event->venue = $eventData['venue'];
         $event->description = $eventData['description'];
         $event->total_tickets = $eventData['total_tickets'];
+        $event->image_url = $eventData['image_url'];
         $event->UserId = $UserId; 
 
         if (!$event->save()) {

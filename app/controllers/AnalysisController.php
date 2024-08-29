@@ -157,83 +157,103 @@ class AnalysisController extends Controller
         }
     }
     
-
     public function getByDurationAction()
-{
-    $response = new Response();
-
-    try {
-        $userDetails = $this->validateRole(['Super Admin', 'System Admin', 'Event Organizers']);
-        $role = $userDetails['role'];
-        $UserId = $userDetails['UserId'];
-
-        // Get start_date and end_date from query parameters
-        $startDate = $this->request->getQuery('start_date', 'string');
-        $endDate = $this->request->getQuery('end_date', 'string');
-
-        if (!$startDate || !$endDate) {
-            throw new \Exception('start_date and end_date parameters are required');
-        }
-
-        // Convert dates to a format suitable for database querying
-        $startDate = date('Y-m-d H:i:s', strtotime($startDate));
-        $endDate = date('Y-m-d H:i:s', strtotime($endDate));
-
-        // Initialize the conditions and bind parameters for the query
-        $conditions = 'tp.created_at BETWEEN :start: AND :end:';
-        $bindParams = [
-            'start' => $startDate,
-            'end'   => $endDate,
-        ];
-
-        // Additional filtering if the user is an Event Organizer
-        if ($role === 'Event Organizers') {
-            $conditions .= ' AND tp.UserId = :userId:';
-            $bindParams['userId'] = $UserId;
-        }
-
-        // Use a query builder to join the TicketProfile and TicketCategory tables
-        $tickets = $this->modelsManager->createBuilder()
-            ->from(['tp' => 'TicketProfile'])
-            ->join('TicketCategory', 'tp.category_id = tc.category_id', 'tc')
-            ->where($conditions, $bindParams)
-            ->columns([
-                'tp.id as ticket_id',
-                'tc.event_id as event_id',
-                'tc.price as price',
-                'tp.created_at as created_at',
-            ])
-            ->getQuery()
-            ->execute();
-
-        // Summarize the data
-        $summary = [
-            'total_tickets_booked' => count($tickets),
-            'total_revenue' => array_sum(array_column($tickets->toArray(), 'price')),
-            'tickets' => []
-        ];
-
-        foreach ($tickets as $ticket) {
-            $summary['tickets'][] = [
-                'ticket_id' => $ticket->ticket_id,
-                'event_id' => $ticket->event_id,
-                'price' => $ticket->price,
-                'created_at' => $ticket->created_at,
+    {
+        $response = new Response();
+    
+        try {
+            $userDetails = $this->validateRole(['Super Admin', 'System Admin', 'Event Organizers']);
+            $role = $userDetails['role'];
+            $UserId = $userDetails['UserId'];
+    
+            // Get start_date and end_date from query parameters
+            $startDate = $this->request->getQuery('start_date', 'string');
+            $endDate = $this->request->getQuery('end_date', 'string');
+    
+            if (!$startDate || !$endDate) {
+                throw new \Exception('start_date and end_date parameters are required');
+            }
+    
+            // Convert dates to a format suitable for database querying
+            $startDate = date('Y-m-d H:i:s', strtotime($startDate));
+            $endDate = date('Y-m-d H:i:s', strtotime($endDate));
+    
+            // Initialize the conditions and bind parameters for the query
+            $conditions = 'e.date BETWEEN :start: AND :end:';
+            $bindParams = [
+                'start' => $startDate,
+                'end'   => $endDate,
             ];
+    
+            // Additional filtering if the user is an Event Organizer
+            if ($role === 'Event Organizers') {
+                $conditions .= ' AND e.UserId = :userId:';
+                $bindParams['userId'] = $UserId;
+            }
+    
+            // Use a query builder to join the Event, TicketCategory, and TicketProfile tables
+            $events = $this->modelsManager->createBuilder()
+                ->from(['e' => 'Event'])
+                ->join('TicketCategory', 'e.id = tc.event_id', 'tc')
+                ->join('TicketProfile', 'tc.category_id = tp.category_id', 'tp', 'LEFT')
+                ->where($conditions, $bindParams)
+                ->columns([
+                    'e.id as event_id',
+                    'e.name as event_name',
+                    'tc.category_name as category_name',
+                    'tc.price as category_price',
+                    'tp.created_at as ticket_created_at',
+                    'COUNT(tp.id) as tickets_sold',
+                    'SUM(tc.price) as total_revenue'
+                ])
+                ->groupBy('e.id, tc.category_id')
+                ->getQuery()
+                ->execute();
+    
+            // Summarize the data
+            $summary = [];
+            $eventStatistics = [];
+    
+            foreach ($events as $event) {
+                if (!isset($eventStatistics[$event->event_id])) {
+                    $eventStatistics[$event->event_id] = [
+                        'event_name' => $event->event_name,
+                        'total_tickets_sold' => 0,
+                        'total_revenue' => 0,
+                        'categories' => []
+                    ];
+                }
+    
+                $eventStatistics[$event->event_id]['total_tickets_sold'] += $event->tickets_sold;
+                $eventStatistics[$event->event_id]['total_revenue'] += $event->total_revenue;
+    
+                // Handle categories
+                $eventStatistics[$event->event_id]['categories'][] = [
+                    'category_name' => $event->category_name,
+                    'tickets_sold' => $event->tickets_sold,
+                    'price' => $event->category_price
+                ];
+            }
+    
+            $summary = [
+                'events' => $eventStatistics
+            ];
+    
+            return $response->setJsonContent([
+                'status' => 'success',
+                'data' => $summary
+            ]);
+    
+        } catch (\Exception $e) {
+            return $response->setJsonContent([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ]);
         }
-
-        return $response->setJsonContent([
-            'status' => 'success',
-            'data' => $summary
-        ]);
-
-    } catch (\Exception $e) {
-        return $response->setJsonContent([
-            'status' => 'error',
-            'message' => $e->getMessage()
-        ]);
     }
-}
+    
+    
+    
 public function getTicketsByDateAction()
 {
     $response = new Response();
@@ -379,7 +399,7 @@ private function getEventStatistics($event)
         'pending_payments' => $pendingPayments,
         'remaining_tickets' => $remainingTickets,
         'categories' => $categoryDetails, 
-        'date' => $event->date,
+        //'date' => $event->date,
     ];
 }
 

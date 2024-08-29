@@ -100,6 +100,16 @@ $router->addGet('/roles/getRoleByUserId/{userId}', [
     'controller' => 'roles',
     'action' => 'getRoleByUserId',
 ]);
+//redeem tickets
+$router->add(
+    "/redeem/ticket/{unique_code}",
+    [
+        "controller" => "validTickets",
+        "action"     => "redeem",
+        "unique_code" => 1
+    ]
+);
+
 
 // Route to update the role of a user by user ID
 $router->addPost('/roles/updateRoleByUserId/{userId}', [

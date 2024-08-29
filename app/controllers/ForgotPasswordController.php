@@ -16,7 +16,7 @@ class ForgotPasswordController extends Controller
         if (!$data || !isset($data['username'])) {
             return $this->response->setStatusCode(400, 'Bad Request')
                                   ->setContentType('application/json', 'UTF-8')
-                                  ->setJsonContent(['error' => 'Username is required']);
+                                  ->setJsonContent(['success' => false, 'error' => 'Username is required']);
         }
 
         $username = $data['username'];
@@ -29,7 +29,7 @@ class ForgotPasswordController extends Controller
         if (!$user) {
             return $this->response->setStatusCode(404, 'Not Found')
                                   ->setContentType('application/json', 'UTF-8')
-                                  ->setJsonContent(['error' => 'User not found']);
+                                  ->setJsonContent(['success' => false, 'error' => 'User not found']);
         }
 
         // Generate OTP
@@ -42,19 +42,19 @@ class ForgotPasswordController extends Controller
         if (!$this->sendOtpEmail($user->email, $otp)) {
             return $this->response->setStatusCode(500, 'Internal Server Error')
                                   ->setContentType('application/json', 'UTF-8')
-                                  ->setJsonContent(['error' => 'Failed to send OTP email']);
+                                  ->setJsonContent(['success' => false, 'error' => 'Failed to send OTP email']);
         }
 
         // Send OTP via SMS
         if (!$this->sendOtpSms($user->phone, $otp)) {
             return $this->response->setStatusCode(500, 'Internal Server Error')
                                   ->setContentType('application/json', 'UTF-8')
-                                  ->setJsonContent(['error' => 'Failed to send OTP SMS']);
+                                  ->setJsonContent(['success' => false, 'error' => 'Failed to send OTP SMS']);
         }
 
         return $this->response->setStatusCode(200, 'OK')
                               ->setContentType('application/json', 'UTF-8')
-                              ->setJsonContent(['message' => 'OTP sent to your email and phone']);
+                              ->setJsonContent(['success' => true, 'message' => 'OTP sent to your email and phone']);
     }
 
     public function verifyOtpAndResetPasswordAction()
@@ -66,7 +66,7 @@ class ForgotPasswordController extends Controller
         if (!$data) {
             return $this->response->setStatusCode(400, 'Bad Request')
                                   ->setContentType('application/json', 'UTF-8')
-                                  ->setJsonContent(['error' => 'Invalid JSON data provided']);
+                                  ->setJsonContent(['success' => false, 'error' => 'Invalid JSON data provided']);
         }
 
         $username = $data['username'] ?? null;
@@ -76,7 +76,7 @@ class ForgotPasswordController extends Controller
         if (!$username || !$otp || !$newPassword) {
             return $this->response->setStatusCode(400, 'Bad Request')
                                   ->setContentType('application/json', 'UTF-8')
-                                  ->setJsonContent(['error' => 'Username, OTP, and new password are required']);
+                                  ->setJsonContent(['success' => false, 'error' => 'Username, OTP, and new password are required']);
         }
 
         $user = Users::findFirstByUsername($username);
@@ -84,13 +84,13 @@ class ForgotPasswordController extends Controller
         if (!$user) {
             return $this->response->setStatusCode(404, 'Not Found')
                                   ->setContentType('application/json', 'UTF-8')
-                                  ->setJsonContent(['error' => 'User not found']);
+                                  ->setJsonContent(['success' => false, 'error' => 'User not found']);
         }
 
         if ($user->otp !== $otp || time() > $user->otp_expires_at) {
             return $this->response->setStatusCode(401, 'Unauthorized')
                                   ->setContentType('application/json', 'UTF-8')
-                                  ->setJsonContent(['error' => 'Invalid or expired OTP']);
+                                  ->setJsonContent(['success' => false, 'error' => 'Invalid or expired OTP']);
         }
 
         // Reset password and update verification status
@@ -101,14 +101,13 @@ class ForgotPasswordController extends Controller
         if (!$user->save()) {
             return $this->response->setStatusCode(500, 'Internal Server Error')
                                   ->setContentType('application/json', 'UTF-8')
-                                  ->setJsonContent(['error' => 'Failed to reset password']);
+                                  ->setJsonContent(['success' => false, 'error' => 'Failed to reset password']);
         }
 
         return $this->response->setStatusCode(200, 'OK')
                               ->setContentType('application/json', 'UTF-8')
-                              ->setJsonContent(['message' => 'Password reset successfully']);
+                              ->setJsonContent(['success' => true, 'message' => 'Password reset successfully']);
     }
-
     private function sendOtpEmail($recipientEmail, $otp)
     {
         $mail = new PHPMailer(true);

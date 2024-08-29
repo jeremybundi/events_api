@@ -4167,3 +4167,111 @@ Array
 
 )
 M-Pesa Payment ID: 45, Receipt Number: SXYC123XYZ
+Array
+(
+    [Body] => Array
+        (
+            [stkCallback] => Array
+                (
+                    [MerchantRequestID] => 12345-67890
+                    [CheckoutRequestID] => ws_CO_1234567890
+                    [ResultCode] => 0
+                    [ResultDesc] => The service request is processed successfully.
+                    [CallbackMetadata] => Array
+                        (
+                            [Item] => Array
+                                (
+                                    [0] => Array
+                                        (
+                                            [Name] => Amount
+                                            [Value] => 1000
+                                        )
+
+                                    [1] => Array
+                                        (
+                                            [Name] => MpesaReceiptNumber
+                                            [Value] => SXYC123XYZ
+                                        )
+
+                                    [2] => Array
+                                        (
+                                            [Name] => TransactionDate
+                                            [Value] => 20240808
+                                        )
+
+                                    [3] => Array
+                                        (
+                                            [Name] => PhoneNumber
+                                            [Value] => 254712345678
+                                        )
+
+                                    [4] => Array
+                                        (
+                                            [Name] => AccountReference
+                                            [Value] => 63
+                                        )
+
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+M-Pesa Payment ID: 63, Receipt Number: SXYC123XYZ
+Array
+(
+    [Body] => Array
+        (
+            [stkCallback] => Array
+                (
+                    [MerchantRequestID] => 12345-67890
+                    [CheckoutRequestID] => ws_CO_1234567890
+                    [ResultCode] => 0
+                    [ResultDesc] => The service request is processed successfully.
+                    [CallbackMetadata] => Array
+                        (
+                            [Item] => Array
+                                (
+                                    [0] => Array
+                                        (
+                                            [Name] => Amount
+                                            [Value] => 1000
+                                        )
+
+                                    [1] => Array
+                                        (
+                                            [Name] => MpesaReceiptNumber
+                                            [Value] => SXYC123XYZ
+                                        )
+
+                                    [2] => Array
+                                        (
+                                            [Name] => TransactionDate
+                                            [Value] => 20240808
+                                        )
+
+                                    [3] => Array
+                                        (
+                                            [Name] => PhoneNumber
+                                            [Value] => 254712345678
+                                        )
+
+                                    [4] => Array
+                                        (
+                                            [Name] => AccountReference
+                                            [Value] => 64
+                                        )
+
+                                )
+
+                        )
+
+                )
+
+        )
+
+)
+M-Pesa Payment ID: 64, Receipt Number: SXYC123XYZ
