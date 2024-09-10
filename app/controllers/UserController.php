@@ -91,7 +91,7 @@ class UserController extends Controller
         $user->email = $email;
         $user->password = password_hash($password, PASSWORD_BCRYPT);
         $user->phone = $phone;
-        $user->role_id = 1;
+        $user->role_id = 4;
 
         // Generate OTP
         $otp = rand(100000, 999999);

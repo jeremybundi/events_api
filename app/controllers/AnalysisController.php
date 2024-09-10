@@ -140,8 +140,8 @@ class AnalysisController extends Controller
                 'total_pending_amount' => $totalPendingAmount,
                 'successful_payments' => $successfulPayments,
                 'pending_payments' => $failedPayments,
-                'total_mpesa_amount' => $totalMpesaAmount,
-                'total_card_amount' => $totalCardAmount,
+               // 'total_mpesa_amount' => $totalMpesaAmount,
+                //'total_card_amount' => $totalCardAmount,
             ];
     
             return $response->setJsonContent([
@@ -329,13 +329,14 @@ public function getTicketsByDateAction()
         ]);
     }
 }
+
 private function getEventStatistics($event)
 {
     $totalTicketsSold = 0;
     $totalRevenue = 0;
-    $pendingPayments = 0;
-    $amountPaid = 0;
     $totalTicketsAvailable = 0;
+    $totalValidTickets = 0;
+    $totalRedeemedTickets = 0;
 
     $categoryDetails = [];
 
@@ -347,60 +348,57 @@ private function getEventStatistics($event)
         ]
     ]);
 
-    // Calculate total tickets sold, total revenue, total tickets available, and details for each category
+    // Calculate total tickets sold, total revenue, total tickets available, valid and redeemed tickets for each category
     foreach ($ticketCategories as $ticketCategory) {
         $ticketsSold = $ticketCategory->purchased_tickets;
-        $ticketsAvailable = $ticketCategory->quantity_available; 
+        $ticketsAvailable = $ticketCategory->quantity_available;
         $revenue = $ticketsSold * $ticketCategory->price;
 
         $totalTicketsSold += $ticketsSold;
         $totalRevenue += $revenue;
         $totalTicketsAvailable += $ticketsAvailable;
 
+        // Fetch valid and redeemed tickets for this category
+        $validTickets = TicketProfile::count([
+            'conditions' => 'category_id = ?1 AND valid_status = 1',
+            'bind'       => [
+                1 => $ticketCategory->category_id
+            ]
+        ]);
+
+        $redeemedTickets = TicketProfile::count([
+            'conditions' => 'category_id = ?1 AND redeemed_ticket = 1',
+            'bind'       => [
+                1 => $ticketCategory->category_id
+            ]
+        ]);
+
+        $totalValidTickets += $validTickets;
+        $totalRedeemedTickets += $redeemedTickets;
+
         // Calculate remaining tickets for this category
         $remainingTickets = $ticketsAvailable - $ticketsSold;
 
         // Store category details
         $categoryDetails[] = [
-            'category name' => $ticketCategory->category_name, 
+            'category_name' => $ticketCategory->category_name,
             'tickets_available' => $ticketsAvailable,
             'tickets_sold' => $ticketsSold,
             'remaining_tickets' => $remainingTickets,
+            'valid_tickets' => $validTickets,
+            'redeemed_tickets' => $redeemedTickets,
             'price' => $ticketCategory->price
         ];
     }
 
-    // Fetch all payments for the event
-    $payments = Payment::find([
-        'conditions' => 'booking_id IN (SELECT Booking.id FROM Booking WHERE event_id = ?1)',
-        'bind'       => [
-            1 => $event->id
-        ]
-    ]);
-
-    // Calculate amount paid and pending payments
-    foreach ($payments as $payment) {
-        if ($payment->payment_status_id == 1) {
-            $amountPaid += $payment->total_amount;
-        } elseif ($payment->payment_status_id == 0) {
-            $pendingPayments += $payment->total_amount;
-        }
-    }
-
-    // Calculate remaining tickets for the event
-    $remainingTickets = $totalTicketsAvailable - $totalTicketsSold;
-
-    // Return event statistics
     return [
-        'event_name' => $event->name,
+        'event_name' => $event->name, // Include the event name
         'total_tickets_sold' => $totalTicketsSold,
         'total_revenue' => $totalRevenue,
-        'amount_paid' => $amountPaid,
-        'pending_payments' => $pendingPayments,
-        'remaining_tickets' => $remainingTickets,
-        'categories' => $categoryDetails, 
-        //'date' => $event->date,
+        'total_tickets_available' => $totalTicketsAvailable,
+        'total_valid_tickets' => $totalValidTickets,
+        'total_redeemed_tickets' => $totalRedeemedTickets,
+        'categories' => $categoryDetails
     ];
 }
-
 }

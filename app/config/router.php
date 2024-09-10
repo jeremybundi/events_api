@@ -61,11 +61,59 @@ $router->add(
         'action'     => 'getEventById',
     ]
 );
-//book
+//booking
+// Define routes for BookingController
+$router->addPost('/booking/create', [
+    'controller' => 'booking',
+    'action'     => 'create',
+]);
+
+$router->addPost('/booking/verify', [
+    'controller' => 'booking',
+    'action'     => 'verifyOtp',
+]);
+
+$router->addPost('/pay/mpesa', [
+    'controller' => 'booking',
+    'action'     => 'initiatePayment',
+]);
+//customer login routes
+$router->addPost('/customer/login/sendotp', [
+    'controller' => 'CustomerLogin',
+    'action' => 'sendOtp'
+]);
+
+$router->addPost('/customer/login/verifyotp', [
+    'controller' => 'CustomerLogin',
+    'action' => 'verifyOtp'
+]);
+// Define route for fetching tickets by customer ID
+$router->addGet('/customer/tickets', [
+    'controller' => 'customertickets',
+    'action' => 'getTickets',
+]);
+// Define route for fetching tickets by customer ID
+$router->addGet('/customer/tickets/paid', [
+    'controller' => 'customertickets',
+    'action' => 'getpaidtickets',
+]);
+
+
+
+
+
+
+
+
+
+
+
+////////////////////////////
+/*book
 $router->addPost('/booking/create', [
     'controller' => 'booking',
     'action' => 'create'
-]);
+]);*/
 //get tickets
 
 $router->addGet('/get/tickets', [
@@ -77,7 +125,7 @@ $router->addGet('/tickets/paid', [
     'controller' => 'TicketProfile',
     'action' => 'getPaidTickets'
 ]);
-//pay mpesa
+/*pay mpesa
 $router->add(
     '/transaction/pay/{id}',
     [
@@ -85,11 +133,11 @@ $router->add(
         'action'     => 'pay',
     ]
 );
-//callback
+/*callback
 $router->addPost('/transaction/callback', [
     'controller' => 'transaction',
     'action' => 'callback'
-]);
+]);*/
 //get qr code
 $router->addGet('/ticket/qr-code/{uniqueCode}', [
     'controller' => 'transaction',
@@ -166,6 +214,16 @@ $router->addGet(
         'action'     => 'getTicketsByDate',
     ]
 );
+// In your Phalcon config or router setup
+$router->add(
+    '/qrcodes/{file}',
+    [
+        'controller' => 'index',
+        'action'     => 'serveStatic',
+        'file'       => 1,
+    ]
+);
+
 
 
 $router->handle($_SERVER['REQUEST_URI']);

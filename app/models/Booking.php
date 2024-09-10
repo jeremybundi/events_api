@@ -5,7 +5,7 @@ use Phalcon\Mvc\Model;
 class Booking extends Model
 {
     public $id;
-    public $user_id;
+    public $customer_id;
     public $event_id;
     public $ticket_category_id;
     public $quantity;

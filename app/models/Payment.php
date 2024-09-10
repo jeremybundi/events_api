@@ -1,10 +1,11 @@
 <?php
+
 use Phalcon\Mvc\Model;
 
 class Payment extends Model
 {
     public $id;
-    public $user_id;
+    public $customer_id; // Updated from user_id
     public $total_amount;
     public $payment_method;
     public $mpesa_reference;

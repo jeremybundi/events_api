@@ -379,8 +379,8 @@ class EventController extends Controller
             $eventDate = (new \DateTime($event->date))->format('Y-m-d');
     
             // Update the event data with the formatted date
-            $eventData = $this->getEventData($event); // Use the helper method to get event data with ticket categories
-            $eventData['date'] = $eventDate; // Replace date with formatted date
+            $eventData = $this->getEventData($event); 
+            $eventData['date'] = $eventDate; 
     
             $response->setJsonContent([
                 'status' => 'success',
